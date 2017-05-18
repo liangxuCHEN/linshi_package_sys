@@ -1,0 +1,9 @@
+*.pyc
+*.log
+.idea
+*.png
+*.txt
+db.sqlite3
+*.ttc
+static/
+myApi/migrations/

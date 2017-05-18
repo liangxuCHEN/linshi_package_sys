@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}板木排版报告{% endblock %}
+{% block content %}
+{% if project_list %}
+    <ul>
+    {% for project in project_list %}
+        <li><p>{{project.comment}}</p>
+        <a href="{% url 'project_detail' project.id %}">详细</a></li>
+    {% endfor %}
+    </ul>
+     {% if is_paginated %}
+    <div class="pagination">
+        <span class="page-links">
+            {% if page_obj.has_previous %}
+                <a href="/project?page={{ page_obj.previous_page_number }}">上一页</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+                <a href="/project?page={{ page_obj.next_page_number }}">下一页</a>
+            {% endif %}
+            <span class="page-current">
+                第{{ page_obj.number }}页 ，共{{ page_obj.paginator.num_pages }}页。
+            </span>
+        </span>
+    </div>
+    {%endif%}
+{% else %}
+    <p>没有报告</p>
+{% endif %}
+<hr>
+<a href="{% url 'product_use_rate_demo' %}"> 新增方案</a>
+{% endblock%}
