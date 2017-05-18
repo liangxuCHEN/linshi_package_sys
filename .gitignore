@@ -1,6 +1,6 @@
 *.pyc
 *.log
-.idea
+.idea/
 *.png
 *.txt
 db.sqlite3

@@ -239,7 +239,7 @@ def cut_detail(request, p_id):
             detail_list.append(detail_dic)
 
         content['details'] = detail_list
-        content['col_num'] = len(detail_list[0]['num_list']) + 3
+        content['col_num'] = len(detail_list[0]['num_list']) + 4
 
         # 每块板的总图形数目
         content['sheet_num_shape'] = del_same_data(same_bin_list, product.sheet_num_shape.split(','))

@@ -9,14 +9,14 @@
         <thead>
             <tr><td colspan="{{col_num}}"> <p>板材：{{sheet_name}}， 一共使用：{{num_sheet}}块， 平均使用率：{{avg_rate}}</p></td></tr>
             <tr>
-                <td colspan="2">板材编号</td>
+                <td colspan="3">板材编号</td>
                 {% for value in bin_num %}
                 <td> P{{ forloop.counter }}</td>
                 {% endfor %}
                 <td>总数</td>
             </tr>
             <tr>
-                <td>宽度</td><td>长度 \ 数量：</td>
+                <td>编号</td><td>宽度</td><td>长度 \ 数量：</td>
                 {% for value in bin_num %}
                 <td> {{value}}</td>
                 {% endfor %}
@@ -26,7 +26,7 @@
         <tbody>
             {% for detail in details %}
             <tr>
-                <td>{{detail.width}}</td><td>{{detail.height}}</td>
+                <td>#{{ forloop.counter0 }}</td><td>{{detail.width}}</td><td>{{detail.height}}</td>
                 {% for value in detail.num_list %}
                 <td> {{value}} </td>
                 {% endfor %}
@@ -34,13 +34,13 @@
             </tr>
             {% endfor %}
 
-            <tr><td colspan="2">图形总数：</td>
+            <tr><td colspan="3">图形总数：</td>
             {% for num in sheet_num_shape %}
                 <td>{{num}}</td>
             {% endfor %}
             </tr>
 
-            <tr><td colspan="2">利用率：</td>
+            <tr><td colspan="3">利用率：</td>
             {% for rate in rates %}
                 <td>{{rate}}</td>
             {% endfor %}
