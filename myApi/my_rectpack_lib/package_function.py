@@ -14,7 +14,7 @@ import packer as packer
 def get_shape_data(shape_data, bin_data, num_pic=1):
     """
     shape_data 输入是一个字符串如：板A 400 500 30;板A 130 250 10;板B 800 900 5;
-    bin_data : A 三聚氰胺板-双面胡桃木哑光(J2496-4)25mm 2430 1210 1 0;B 三聚氰胺板-双面白布纹哑光（18mm） 2430 1210 0 0;
+    bin_data : A 三聚氰胺板-双面胡桃木哑光(J2496-4)25mm 2430*1210*18 是;B 三聚氰胺板-双面白布纹哑光（18mm） 2430 1210 0 0;
     没有空格，然后通过处理，返回一个字典
 
     :param data:
@@ -41,13 +41,15 @@ def get_shape_data(shape_data, bin_data, num_pic=1):
 
 
     """
+    defaut_width = 2430
+    defaut_height = 1210
     data_dict = {}     # 返回结果
     bin_list = list()  # 板木种类
     # 板材信息
     bins = bin_data.split(';')
     for abin in bins:
         try:
-            # 输入参数有可能6个或5个
+            # 输入参数有可能6个或5个或4个或3个
             res = abin.split(' ')
             if len(res) == 6:
                 bin_type = res[0]
@@ -63,6 +65,31 @@ def get_shape_data(shape_data, bin_data, num_pic=1):
                 b_h = res[3]
                 is_t = res[4]
                 is_v = 0
+            # 需要处理板材长宽
+            elif len(res) == 4 or len(res) == 3:
+                bin_type = res[0]
+
+                try:
+                    len_res = res[2].split('*')
+                    b_w = int(len_res[0]) - 10
+                    b_h = int(len_res[1]) - 10
+                except:
+                    b_w = defaut_width
+                    b_h = defaut_height
+
+                try:
+                    if res[3] == u'是':
+                        is_t = 1
+                    else:
+                        is_t = 0
+                except:
+                    is_t = 0
+
+                is_v = 0
+                if is_t == 1:
+                    name = res[1] + ' ' + res[2] + u' 有纹理'
+                else:
+                    name = res[1] + ' ' + res[2] + u' 无纹理'
             else:
                 return {
                     'error': True,
@@ -332,7 +359,7 @@ def main_process(input_data, pathname):
             'same_bin_list': str(same_bin_list)[1:-1],
             'sheet_num_shape': str([len(s) for s in best_solution])[1:-1],
             'rates': str(rate_list)[1:-1],
-            'sheet': u'%s %d x %d 选用算法<%d>' % (values['name'], values['width'], values['height'], best_packer),
+            'sheet': u'%s 选用算法<%d>' % (values['name'], best_packer),
             'name': values['name'],
             'bin_type': bin_type,
             'pic_url': pathname + bin_type+'.png',
