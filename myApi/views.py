@@ -113,9 +113,7 @@ def product_use_rate(request):
             # 是否已经有
             projects = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data'])
             if len(projects) > 0:
-                content = {
-                    'project_id': projects[0].id
-                }
+                content = 'project_detail/%d' % projects[0].id
                 return HttpResponse(json.dumps(content), content_type="application/json")
         filename = str(time.time()).split('.')[0]
         path = os.path.join(settings.BASE_DIR, 'static')
@@ -128,9 +126,8 @@ def product_use_rate(request):
                 project_id = create_project(results, request.POST, filename)
             except:
                 project_id = None
-            content = {
-                'project_id': project_id
-            }
+            
+            content = 'project_detail/%d' % project_id
             return HttpResponse(json.dumps(content), content_type="application/json")
     else:
         return render(request, 'product_use_rate.html')
