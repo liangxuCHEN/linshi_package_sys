@@ -4,8 +4,8 @@
 {% if project_list %}
     <ul>
     {% for project in project_list %}
-        <li><p>{{project.comment}}</p>
-        <a href="{% url 'project_detail' project.id %}">详细</a></li>
+        <li><p>方案{{ project.id }} ：<a href="{% url 'project_detail' project.id %}">详细</a></p>
+        </li>
     {% endfor %}
     </ul>
      {% if is_paginated %}
