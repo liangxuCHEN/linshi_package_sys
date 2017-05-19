@@ -131,8 +131,12 @@ def get_shape_data(shape_data, bin_data, num_pic=1):
     for shape in shapes:
         try:
             bin_type, x, y, num = shape.split(' ')
-            x = int(x)
-            y = int(y)
+            try:
+                x = int(x)
+                y = int(y)
+            except:
+                x = float(x)
+                y = float(y)
             num = int(num) * num_pic
             if bin_type in bin_list:
                 data_dict[bin_type]['shape_list'].append((x, y))
@@ -374,7 +378,7 @@ def detail_text(shape_list, situation_list, num_list):
     output_text = ''
 
     for shape in shape_list:
-        output_text += '%d,%d' % (shape[1], shape[0])
+        output_text += '%s,%s' % (str(shape[1]), str(shape[0]))
         id_situation = 0
         for situation in situation_list:
             if num_list[id_situation] != 0:
@@ -397,7 +401,7 @@ def detail_empty_sections(empty_sections):
 
     for e_places in empty_sections:
         for e_p in e_places:
-            c_id = "%dx%d" % (max(e_p[2], e_p[3]), min(e_p[2], e_p[3]))
+            c_id = "%sx%s" % (str(max(e_p[2], e_p[3])), str(min(e_p[2], e_p[3])))
             if c_id in counts.keys():
                 counts[c_id]['num'] += 1
             else:
@@ -407,6 +411,6 @@ def detail_empty_sections(empty_sections):
                 }
     text = ""
     for key, value in counts.items():
-        text += "%s %d %d;" % (key, value['num'], value['ares'])
+        text += "%s %d %s;" % (key, value['num'], str(value['ares']))
     return text[:-1]
 
