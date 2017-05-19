@@ -285,9 +285,13 @@ def project_detail(request, p_id):
     bin_list = project.products.all()
     content = {
         'created': project.created,
-        'comment': project.comment,
         'bin_list': list()
     }
+    try:
+        content['comment_json'] = json.loads(project.comment)
+    except:
+        content['comment_text'] = project.comment
+
     for abin in bin_list:
         content['bin_list'].append({
             'bin_id': abin.id,
@@ -297,6 +301,11 @@ def project_detail(request, p_id):
             'pic_url': abin.pic_url,
         })
     return render(request, 'project_detail.html', content)
+
+
+def generate_data(text):
+    json_text = json.loads(text)
+    print(json_text)
 
 
 class ProjectIndexView(generic.ListView):

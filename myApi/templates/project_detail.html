@@ -5,7 +5,37 @@
     <p>{{error}}</p>
 {% else %}
     <p>创建时间： {{created| date:"Y年n月d日 H:i" }} </p>
-    <p>描述：{{comment}} </p>
+    {% if comment_text %}
+        <p>描述：{{comment}} </p>
+    {% endif %}
+    {% if comment_json %}
+        <table border="1" style="border-spacing: 1px;border-collapse: collapse;">
+            <thead><tr>
+                <td>序号</td>
+                <td>系列</td>
+                <td>产品编号</td>
+                <td>产品名称</td>
+                <td>产品描述</td>
+                <td>系列版本</td>
+                <td>产品版本</td>
+                <td>数量</td>
+            </tr></thead>
+            <tbody>
+            {% for data in comment_json %}
+                <tr>
+                    <td>{{forloop.counter}}</td>
+                    <td>{{data.Series}}系列</td>
+                    <td>{{data.SkuCode}}产品编码</td>
+                    <td>{{data.ItemName}}产品名称</td>
+                    <td>{{data.SkuName}}产品描述</td>
+                    <td>{{data.SeriesVersion}}系列版本</td>
+                    <td>{{data.BOMVersion}}产品版本</td>
+                    <td>{{data.Amount}}数量</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
     <hr>
     {%for abin in bin_list %}
         <p>{{abin.sheet_name}}</p>
