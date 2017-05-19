@@ -24,13 +24,13 @@
             {% for data in comment_json %}
                 <tr>
                     <td>{{forloop.counter}}</td>
-                    <td>{{data.Series}}系列</td>
-                    <td>{{data.SkuCode}}产品编码</td>
-                    <td>{{data.ItemName}}产品名称</td>
-                    <td>{{data.SkuName}}产品描述</td>
-                    <td>{{data.SeriesVersion}}系列版本</td>
-                    <td>{{data.BOMVersion}}产品版本</td>
-                    <td>{{data.Amount}}数量</td>
+                    <td>{{data.Series}}</td>
+                    <td>{{data.SkuCode}}</td>
+                    <td>{{data.ItemName}}</td>
+                    <td>{{data.SkuName}}</td>
+                    <td>{{data.SeriesVersion}}</td>
+                    <td>{{data.BOMVersion}}</td>
+                    <td>{{data.Amount}}</td>
                 </tr>
             {% endfor %}
             </tbody>
