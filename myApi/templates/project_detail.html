@@ -6,7 +6,7 @@
 {% else %}
     <p>创建时间： {{created| date:"Y年n月d日 H:i" }} </p>
     {% if comment_text %}
-        <p>描述：{{comment}} </p>
+        <p>描述：{{comment_text}} </p>
     {% endif %}
     {% if comment_json %}
         <table border="1" style="border-spacing: 1px;border-collapse: collapse;">
