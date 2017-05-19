@@ -180,7 +180,7 @@ def create_project(results, post_data, filename):
     # save product
     for res in results['statistics_data']:
         product = ProductRateDetail(
-            sheet_name=res['sheet'],
+            sheet_name=res['name'],
             num_sheet=res['num_sheet'],
             avg_rate=res['rate'],
             rates=res['rates'],
