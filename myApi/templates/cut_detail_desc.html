@@ -47,6 +47,7 @@
             </tr>
         </tbody>
     </table><br>
+    {% if empty_sections %}
     <table border="1" style="border-spacing: 1px;border-collapse: collapse;">
         <thead><tr><td>余料</td><td>数量</td><td>面积(mm^2)</td></tr></thead>
         <tbody>
@@ -55,6 +56,7 @@
          {% endfor %}
         </tbody>
     </table>
+    {% endif %}
     <p><a href="/{{pic_url}}"> 排版设计图 </a> </p>
 
 {% endif %}

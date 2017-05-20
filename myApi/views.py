@@ -246,15 +246,19 @@ def cut_detail(request, p_id):
         content['rates'].append(content['avg_rate'])
 
         # 余料信息
-        empty_sections = product.empty_sections.split(';')
-        content['empty_sections'] = []
-        for e_section in empty_sections:
-            name, num, ares = e_section.split(' ')
-            content['empty_sections'].append({
-                'name': name,
-                'num': num,
-                'ares': ares
-            })
+
+        try:
+            empty_sections = product.empty_sections.split(';')
+            content['empty_sections'] = []
+            for e_section in empty_sections:
+                name, num, ares = e_section.split(' ')
+                content['empty_sections'].append({
+                    'name': name,
+                    'num': num,
+                    'ares': ares
+                })
+        except:
+            pass
 
         return render(request, 'cut_detail_desc.html', content)
     else:
