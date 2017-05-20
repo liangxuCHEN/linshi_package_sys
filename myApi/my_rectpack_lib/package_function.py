@@ -1,5 +1,5 @@
 # encoding=utf8
-
+import json
 from package_tools import use_rate, draw_one_pic, tidy_shape, is_valid_empty_section, find_the_same_position
 from packer import newPacker
 import guillotine as guillotine
@@ -9,6 +9,79 @@ import packer as packer
 给定数量的产品，求混排的最优结果
 输出板材的数量和排版结果
 """
+
+
+def get_shape_data_from_json(shape_data, bin_data):
+    default_width = 2430
+    default_height = 1210
+    data_dict = {}  # 返回结果
+    bin_list = list()  # 板木种类
+
+    # 板木数据
+    bins = json.loads(bin_data)
+    for bin in bins:
+        if bin['SkuCode'] in bin_list:
+            return {
+                'error': True,
+                'info': u'板木数据输入有误，有重复的板木数据'
+            }
+
+        try:
+            len_res = bin['SkuName'].split('*')
+            b_w = int(len_res[0]) - 10
+            b_h = int(len_res[1]) - 10
+        except:
+            b_w = default_width
+            b_h = default_height
+
+        try:
+            if bin['HasGrain'] == u'是':
+                is_t = 1
+            else:
+                is_t = 0
+        except:
+            is_t = 0
+
+        bin_type = bin['SkuCode']
+        if is_t == 1:
+            name = bin['ItemName'] + ' ' + bin['SkuName'] + u' 有纹理'
+        else:
+            name = bin['ItemName'] + ' ' + bin['SkuName'] + u' 无纹理'
+
+        data_dict[bin_type] = {
+            'shape_list': list(),
+            'shape_num': list()
+        }
+        data_dict[bin_type]['name'] = name
+        data_dict[bin_type]['width'] = b_w
+        data_dict[bin_type]['height'] = b_h
+        data_dict[bin_type]['is_texture'] = is_t
+        data_dict[bin_type]['is_vertical'] = 0
+        bin_list.append(bin_type)
+
+    # 组件数据
+    shapes = json.loads(shape_data)
+    for shape in shapes:
+        x =shape['Length']
+        y =shape['Width']
+
+        if shape['SkuCode'] in bin_list:
+            data_dict[shape['SkuCode']]['shape_list'].append((x, y))
+            data_dict[shape['SkuCode']]['shape_num'].append(int(shape['Amount']))
+        else:
+            return {
+                'error': True,
+                'info': u'矩形数据输入有误，没有对应的板木类别'
+            }
+
+        if x > data_dict[bin_type]['width'] or y > data_dict[bin_type]['width']:
+            return {'error': True, 'info': u'输入尺寸数值错误，组件尺寸必须小于板材'}
+        if x <= 0 or y <= 0:
+            return {'error': True, 'info': u'输入尺寸数值错误，尺寸输入值必须大于零'}
+        if int(shape['Amount']) <= 0:
+            return {'error': True, 'info': u'输入矩形数量错误，输入值必须大于零'}
+
+    return {'data': data_dict, 'error': False}
 
 
 def get_shape_data(shape_data, bin_data, num_pic=1):
@@ -326,16 +399,22 @@ def main_process(input_data, pathname):
         except:
             return {'error': True, 'info': u'算法选择错误'}
 
-    # 矩形参数
-    data = get_shape_data(input_data['shape_data'], input_data['bin_data'])
+    # 矩形参数, 先尝试json格式
+    try:
+        data = get_shape_data_from_json(input_data['shape_data'], input_data['bin_data'])
+    except:
+        data = get_shape_data(input_data['shape_data'], input_data['bin_data'])
+
     if data['error']:
         return {'error': True, 'info': data['info']}
 
     statistics_data = []  # 汇总报告
     # 每一种板木排版一次
     for bin_type, values in data['data'].items():
+        print(values['shape_list'])
         all_shapes, shape_list, num_shapes = tidy_shape(
             values['shape_list'], values['shape_num'], values['is_texture'], values['is_vertical'])
+        print(shape_list)
         best_solution, empty_positions, best_rate, best_packer = find_best_solution(
             all_shapes, BORDER, values['width'], values['height'], values['is_texture'], packer_id_list=algo_list)
 
@@ -401,7 +480,11 @@ def detail_empty_sections(empty_sections):
 
     for e_places in empty_sections:
         for e_p in e_places:
-            c_id = "%sx%s" % (str(max(e_p[2], e_p[3])), str(min(e_p[2], e_p[3])))
+            max_l = max(e_p[2], e_p[3])
+            min_l = min(e_p[2], e_p[3])
+            max_l = [str(max_l), int(max_l)][int(max_l) == max_l]
+            min_l = [str(min_l), int(min_l)][int(min_l) == min_l]
+            c_id = "%sx%s" % (max_l, min_l)
             if c_id in counts.keys():
                 counts[c_id]['num'] += 1
             else:
