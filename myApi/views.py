@@ -246,7 +246,6 @@ def cut_detail(request, p_id):
         content['rates'].append(content['avg_rate'])
 
         # 余料信息
-
         try:
             empty_sections = product.empty_sections.split(';')
             content['empty_sections'] = []
