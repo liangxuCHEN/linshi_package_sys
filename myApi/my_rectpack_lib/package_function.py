@@ -411,10 +411,8 @@ def main_process(input_data, pathname):
     statistics_data = []  # 汇总报告
     # 每一种板木排版一次
     for bin_type, values in data['data'].items():
-        print(values['shape_list'])
         all_shapes, shape_list, num_shapes = tidy_shape(
             values['shape_list'], values['shape_num'], values['is_texture'], values['is_vertical'])
-        print(shape_list)
         best_solution, empty_positions, best_rate, best_packer = find_best_solution(
             all_shapes, BORDER, values['width'], values['height'], values['is_texture'], packer_id_list=algo_list)
 
