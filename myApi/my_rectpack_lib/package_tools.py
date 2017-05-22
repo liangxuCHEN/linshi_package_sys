@@ -6,6 +6,8 @@ import matplotlib.patches as patches
 import os
 from django_api import settings
 
+from package import PackerSolution
+
 
 def use_rate(use_place, width, height):
     total_use = 0
@@ -133,8 +135,8 @@ def write_desc_doc(shapes, shapes_num, path, width, height, positions, num_list,
                 i_place += 1
 
 
-def draw_one_pic(positions, rates, width, height, path, border=0, num_list=None,
-                 shapes=None, empty_positions=None, title=None):
+def draw_one_pic(positions, rates, width=None, height=None, path=None, border=0, num_list=None,
+                 shapes=None, empty_positions=None, title=None, bins_list=None):
     # 多个图像需要处理
 
     if shapes is not None:
@@ -145,6 +147,7 @@ def draw_one_pic(positions, rates, width, height, path, border=0, num_list=None,
     else:
         # 单个图表
         num_list = [1]
+
     i_p = 0     # 记录板材索引
     i_pic = 1   # 记录图片的索引
     num = len(del_same_data(num_list, num_list))
@@ -192,12 +195,23 @@ def draw_one_pic(positions, rates, width, height, path, border=0, num_list=None,
 
                     ax1.annotate(p_id, (cx, cy), color='black', weight='bold',
                                  fontsize=6, ha='center', va='center')
+            # 坐标长度
+            if width is not None and height is not None:
+                ax1.set_xlim(0, width)
+                ax1.set_ylim(0, height)
+            elif bins_list is not None:
+                ax1.set_xlim(0, bins_list[i_p][0])
+                ax1.set_ylim(0, bins_list[i_p][1])
+            else:
+                ax1.set_xlim(0, 2430)
+                ax1.set_ylim(0, 1210)
 
-            ax1.set_xlim(0, width)
-            ax1.set_ylim(0, height)
         i_p += 1
 
-    fig1.savefig('%s.png' % path)
+    if path is not None:
+        fig1.savefig('%s.png' % path)
+    else:
+        fig1.show()
 
 
 def find_the_same_position(positions):
@@ -237,4 +251,116 @@ def del_same_data(same_bin_list, data_list):
         if int(same_bin_list[id_data]) != 0:
             res.append(data_list[id_data])
     return res
+
+
+def detail_text(shape_list, situation_list, num_list):
+    output_text = ''
+
+    for shape in shape_list:
+        output_text += '%s,%s' % (str(shape[1]), str(shape[0]))
+        id_situation = 0
+        for situation in situation_list:
+            if num_list[id_situation] != 0:
+                # 统计每块板有多少个shape一样的图形
+                count = 0
+                for position in situation:
+                        if shape == (position[2], position[3]) or shape == (position[3], position[2]):
+                            count += 1
+
+                output_text += ',%d' % count
+            id_situation += 1
+        # 拆分用‘;’
+        output_text += ';'
+
+    return output_text[:-1]
+
+
+def detail_empty_sections(empty_sections):
+    counts = {}
+    for e_places in empty_sections:
+        for e_p in e_places:
+            max_l = max(e_p[2], e_p[3])
+            min_l = min(e_p[2], e_p[3])
+            max_l = [str(max_l), int(max_l)][int(max_l) == max_l]
+            min_l = [str(min_l), int(min_l)][int(min_l) == min_l]
+            c_id = "%sx%s" % (max_l, min_l)
+            if c_id in counts.keys():
+                counts[c_id]['num'] += 1
+            else:
+                counts[c_id] = {
+                    'num': 1,
+                    'ares': e_p[2] * e_p[3]
+                }
+    text = ""
+    for key, value in counts.items():
+        text += "%s %d %s;" % (key, value['num'], str(value['ares']))
+    return text[:-1]
+
+
+def package_main_function(input_data, pathname):
+    if input_data['bins_num'] != '':
+        bins_num = input_data['bins_num']
+    else:
+        bins_num = None
+
+    # 创建分析对象
+    packer = PackerSolution(
+        input_data['shape_data'],
+        input_data['bin_data'],
+        bins_num=bins_num,
+        empty_section_min_size=int(input_data['min_size']),
+        empty_section_min_len=int(input_data['min_len']),
+    )
+
+    algo_list = None
+    if 'algo_list' in input_data.keys():
+        algo_list = [int(x) for x in input_data.getlist('algo_list')]
+
+    # 若数据没有错，返回结果
+    if packer.is_valid():
+        res = packer.find_solution(algo_list=algo_list)
+        statistics_data = []  # 汇总报告
+        for data in res:
+            best_solution = data['solution']
+            bins_list = data['bins_list']
+            shape_list = packer.get_bin_data(data['bin_key'], key='shape_list')
+            shape_num = packer.get_bin_data(data['bin_key'], key='shape_num')
+            name = packer.get_bin_data(data['bin_key'], key='name')
+
+            # 计算使用率
+            rate_list = list()
+            for s_id in range(0, len(best_solution)):
+                r = use_rate(best_solution[s_id], bins_list[s_id][0], bins_list[s_id][1])
+                rate_list.append(r)
+
+            title = u'平均利用率: %s' % str(data['rate'])
+            # 返回唯一的排版列表，以及数量
+            same_bin_list = find_the_same_position(best_solution)
+
+            draw_one_pic(best_solution, rate_list, bins_list=bins_list,
+                         path=pathname + data['bin_key'], border=1, num_list=same_bin_list, title=title,
+                         shapes=shape_list, empty_positions=data['empty_section'])
+
+            # 保存统计信息
+            statistics_data.append({
+                'error': False,
+                'rate': data['rate'],
+                'num_sheet': len(best_solution),
+                'detail': detail_text(shape_list, best_solution, same_bin_list),
+                'num_shape': str(shape_num)[1:-1],
+                'same_bin_list': str(same_bin_list)[1:-1],
+                'sheet_num_shape': str([len(s) for s in best_solution])[1:-1],
+                'rates': str(rate_list)[1:-1],
+                'sheet': name,
+                'name':  data['bin_key'] + ' ' + name,
+                'bin_type': data['bin_key'],
+                'pic_url': pathname + data['bin_key'] + '.png',
+                'empty_sections': detail_empty_sections(data['empty_section']),
+                'algo_id': data['algo_id'],
+            })
+        # 返回结果
+        return {'statistics_data': statistics_data, 'error': False}
+    else:
+        # 有错误，返回错误信息
+        return {'error': True, 'info': packer.error_info()}
 

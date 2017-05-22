@@ -1,6 +1,7 @@
 # encoding=utf8
 import json
-from package_tools import use_rate, draw_one_pic, tidy_shape, is_valid_empty_section, find_the_same_position
+from package_tools import use_rate, draw_one_pic, tidy_shape,\
+    is_valid_empty_section, find_the_same_position, detail_text, detail_empty_sections
 from packer import newPacker
 import guillotine as guillotine
 import packer as packer
@@ -426,7 +427,7 @@ def main_process(input_data, pathname):
         # 返回唯一的排版列表，以及数量
         same_bin_list = find_the_same_position(best_solution)
 
-        draw_one_pic(best_solution, rate_list, values['width'], values['height'],
+        draw_one_pic(best_solution, rate_list, width=values['width'], height=values['height'],
                      path=pathname+bin_type, border=1, num_list=same_bin_list, title=title,
                      shapes=shape_list, empty_positions=empty_positions)
 
@@ -450,48 +451,4 @@ def main_process(input_data, pathname):
 
     return {'statistics_data': statistics_data, 'error': False}
 
-
-def detail_text(shape_list, situation_list, num_list):
-    output_text = ''
-
-    for shape in shape_list:
-        output_text += '%s,%s' % (str(shape[1]), str(shape[0]))
-        id_situation = 0
-        for situation in situation_list:
-            if num_list[id_situation] != 0:
-                # 统计每块板有多少个shape一样的图形
-                count = 0
-                for position in situation:
-                        if shape == (position[2], position[3]) or shape == (position[3], position[2]):
-                            count += 1
-
-                output_text += ',%d' % count
-            id_situation += 1
-        # 拆分用‘;’
-        output_text += ';'
-
-    return output_text[:-1]
-
-
-def detail_empty_sections(empty_sections):
-    counts = {}
-
-    for e_places in empty_sections:
-        for e_p in e_places:
-            max_l = max(e_p[2], e_p[3])
-            min_l = min(e_p[2], e_p[3])
-            max_l = [str(max_l), int(max_l)][int(max_l) == max_l]
-            min_l = [str(min_l), int(min_l)][int(min_l) == min_l]
-            c_id = "%sx%s" % (max_l, min_l)
-            if c_id in counts.keys():
-                counts[c_id]['num'] += 1
-            else:
-                counts[c_id] = {
-                    'num': 1,
-                    'ares': e_p[2] * e_p[3]
-                }
-    text = ""
-    for key, value in counts.items():
-        text += "%s %d %s;" % (key, value['num'], str(value['ares']))
-    return text[:-1]
 

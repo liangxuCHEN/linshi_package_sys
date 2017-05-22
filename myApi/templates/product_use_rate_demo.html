@@ -13,6 +13,12 @@
     <p>板木数据格式：板木编号,名字,长,宽,是否有纹理（0 / 1 = 无 / 有）, 水平或竖直摆放（0 / 1 = 水平 / 竖直）</p>
     <p>例子：A 双面胡桃木哑光25mm 2430 1210 1 0;B 双面白布纹哑光18mm 2430 1210 0 0;C 单面胡桃木哑光9mm 2430 1210 1 1</p>
     <textarea rows="4" cols="50" name="bin_data">{{ bin_data }}</textarea><br>
+    <hr>
+    <p>余料判别参数调整</p>
+    <label>余料最小面积(mm^2)：</label><input type="number" name="min_size" min="0"  value="200000"/>
+    <label>余料短边最小值(mm)：</label><input type="number" name="min_len" min="0" value="58"/>
+    <p>余料再利用数据格式：板木编号,长,宽,数量，例子：A 2130*1010*18 1;A 630*510*18 3</p>
+    <textarea rows="2" cols="50" name="bins_num">{{ bins_num }}</textarea><br>
     <input type="submit" value="提交" />
     {% if project_id %}
         <a href="/project_detail/{{project_id}}"> 结果 </a><br>

@@ -204,7 +204,7 @@ def main_process(data, pathname):
     rate = use_rate(situation, WIDTH, HEIGHT)
     rate = int(rate*100)/100.0
     try:
-        draw_one_pic([situation], [rate], WIDTH, HEIGHT, path=pathname, border=1)
+        draw_one_pic([situation], [rate], width=WIDTH, height=HEIGHT, path=pathname, border=1)
     except Exception as e:
         return {'error': True, 'info': u'作图过程中出错，没有图片', 'rate':rate}
 

@@ -14,7 +14,7 @@ from django.views import generic
 from myApi.forms import AlgoForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
 from myApi.my_rectpack_lib.package_function import main_process as production_rate
-from myApi.my_rectpack_lib.package_tools import del_same_data
+from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function
 
 from myApi.models import Userate, ProductRateDetail, Project
 
@@ -149,7 +149,7 @@ def product_use_rate_demo(request):
         filename = str(time.time()).split('.')[0]
         path = os.path.join(settings.BASE_DIR, 'static')
         path = os.path.join(path, filename)
-        results = production_rate(request.POST, pathname=path)
+        results = package_main_function(request.POST, pathname=path)
         if results['error']:
             results['form'] = AlgoForm()
             return render(request, 'product_use_rate_demo.html', results)
