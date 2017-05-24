@@ -13,6 +13,7 @@ import single_use_rate
 
 EMPTY_BORDER = 5
 SIDE_CUT = 10  # 板材的切边宽带
+EFFECTIVE_RATE = 0.5    # 余料的有效率
 
 
 def use_rate(use_place, width, height, side_cut=SIDE_CUT):
@@ -21,6 +22,13 @@ def use_rate(use_place, width, height, side_cut=SIDE_CUT):
         total_use += w * h
     return int(
         float(total_use)/(width*height+(width+height)*side_cut - side_cut*side_cut) * 10000)/10000.0
+
+
+def empty_ares(empty_section):
+    total_ares = 0
+    for empty_place in empty_section:
+        total_ares += empty_place[2] * empty_place[3]
+    return total_ares
 
 
 def draw_many_pics(positions, width, height, path, border=0):
@@ -351,16 +359,23 @@ def package_main_function(input_data, pathname):
         statistics_data = []  # 汇总报告
         for data in res:
             best_solution = data['solution']
+            empty_sections = data['empty_sections']
             bins_list = data['bins_list']
             shape_list = packer.get_bin_data(data['bin_key'], key='shape_list')
             shape_num = packer.get_bin_data(data['bin_key'], key='shape_num')
             name = packer.get_bin_data(data['bin_key'], key='name')
 
-            # 计算使用率
-            rate_list = list()
+            # 计算总利用率 = 余料使用率/2 + 组件利用率 ，余料面积的1/2 有效余料
+            rate_list = list()          # 组件使用率
+            total_rate_list = list()    # 总利用率
+            empty_ares_list = list()    # 余料面积
             for s_id in range(0, len(best_solution)):
                 r = use_rate(best_solution[s_id], bins_list[s_id][0], bins_list[s_id][1])
+                empty_r = use_rate(empty_sections[s_id], bins_list[s_id][0], bins_list[s_id][1])
                 rate_list.append(r)
+                total_rate_list.append(float("%0.4f" % (empty_r * EFFECTIVE_RATE + r)))
+                # 余料总面积
+                empty_ares_list.append(empty_ares(empty_sections[s_id]))
 
             title = u'平均利用率: %s' % str(data['rate'])
             # 返回唯一的排版列表，以及数量
@@ -385,13 +400,15 @@ def package_main_function(input_data, pathname):
                 'bin_type': data['bin_key'],
                 'pic_url': pathname + data['bin_key'] + '.png',
                 'empty_sections': detail_empty_sections(
-                    data['empty_sections'],
+                    empty_sections,
                     shape_list,
                     packer.get_border(),
                     packer.get_bin_data(data['bin_key'], key='is_texture'),
                     packer.get_bin_data(data['bin_key'], key='is_vertical')
                 ),
                 'algo_id': data['algo_id'],
+                'total_rates': str(total_rate_list)[1:-1],
+                'empty_section_ares': str(empty_ares_list)[1:-1],
             })
         # 返回结果
         return {'statistics_data': statistics_data, 'error': False}

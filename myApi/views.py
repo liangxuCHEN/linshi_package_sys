@@ -190,7 +190,9 @@ def create_project(results, post_data, filename):
             pic_url='static/%s%s.png' % (filename, res['bin_type']),
             same_bin_list=res['same_bin_list'],
             empty_sections=res['empty_sections'],
-            algorithm=res['algo_id']
+            algorithm=res['algo_id'],
+            empty_section_ares=res['empty_section_ares'],
+            total_rates=res['total_rates']
         )
         product.save()
         project.products.add(product)
@@ -260,6 +262,27 @@ def cut_detail(request, p_id):
         # 每块板的利用率
         content['rates'] = del_same_data(same_bin_list, product.rates.split(','))
         content['rates'].append(content['avg_rate'])
+        try:
+            # 每块板总利用率
+            content['total_rates'] = del_same_data(same_bin_list, product.total_rates.split(','))
+            # 求平均总利用率
+            tmp_total = 0
+            for rate in content['total_rates']:
+                tmp_total += float(rate)
+            content['total_rates'].append('%0.4f' % (tmp_total/len(content['total_rates'])))
+        except:
+            pass
+
+        try:
+            # 每块板余料面积
+            content['empty_section_ares'] = del_same_data(same_bin_list, product.empty_section_ares.split(','))
+            # 求总余料面积
+            tmp_total = 0
+            for ares in content['empty_section_ares']:
+                tmp_total += int(ares)
+            content['empty_section_ares'].append(tmp_total)
+        except:
+            pass
 
         # 余料信息
         try:

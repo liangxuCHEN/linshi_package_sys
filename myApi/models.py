@@ -22,6 +22,8 @@ class ProductRateDetail(models.Model):
     same_bin_list = models.CharField(max_length=256, null=True)
     empty_sections = models.CharField(max_length=512, null=True)
     algorithm = models.IntegerField(null=True)
+    empty_section_ares = models.CharField(max_length=512, null=True)
+    total_rates = models.CharField(max_length=512, null=True)
 
 
 class Project(models.Model):

@@ -45,6 +45,22 @@
                 <td>{{rate}}</td>
             {% endfor %}
             </tr>
+
+            {% if total_rates %}
+            <tr><td colspan="3">总利用率：</td>
+            {% for rate in total_rates %}
+                <td>{{rate}}</td>
+            {% endfor %}
+            </tr>
+            {% endif %}
+
+            {% if empty_section_ares %}
+            <tr><td colspan="3">余料面积(mm^2)：</td>
+            {% for ares in empty_section_ares %}
+                <td>{{ares}}</td>
+            {% endfor %}
+            </tr>
+            {% endif %}
         </tbody>
     </table><br>
     {% if empty_sections %}
