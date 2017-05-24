@@ -13,7 +13,6 @@ from django.views import generic
 
 from myApi.forms import AlgoForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
-from myApi.my_rectpack_lib.package_function import main_process as production_rate
 from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function
 
 from myApi.models import Userate, ProductRateDetail, Project
@@ -109,16 +108,16 @@ def single_use_rate_demo(request):
 @csrf_exempt
 def product_use_rate(request):
     if request.method == 'POST':
-        if request.method == 'POST':
-            # 是否已经有
-            projects = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data'])
-            if len(projects) > 0:
-                content = 'project_detail/%d' % projects[0].id
-                return HttpResponse(json.dumps(content), content_type="application/json")
+        # 是否已经有
+        projects = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data'])
+        if len(projects) > 0:
+            content = 'project_detail/%d' % projects[0].id
+            return HttpResponse(json.dumps(content), content_type="application/json")
+
         filename = str(time.time()).split('.')[0]
         path = os.path.join(settings.BASE_DIR, 'static')
         path = os.path.join(path, filename)
-        results = production_rate(request.POST, pathname=path)
+        results = package_main_function(request.POST, pathname=path)
         if results['error']:
             return HttpResponse(json.dumps(results), content_type="application/json")
         else:
@@ -126,9 +125,10 @@ def product_use_rate(request):
                 project_id = create_project(results, request.POST, filename)
             except:
                 project_id = None
-            
+
             content = 'project_detail/%d' % project_id
             return HttpResponse(json.dumps(content), content_type="application/json")
+
     else:
         return render(request, 'product_use_rate.html')
 
@@ -215,28 +215,44 @@ def cut_detail(request, p_id):
         num_shape = product.num_shape.split(',')
 
         # 图形的每个板数量
-        details = product.detail.split(';')
-        detail_list = list()
-        i_shape = 0
-        total_shape = 0
+        try:
+            content['details'] = json.loads(product.detail)
+            total_shape = 0
+            i_shape = 0
+            for detail in content['details']:
+                tmp_sum = 0
+                for x in range(0, len(detail['num_list'])):
+                    tmp_sum += int(detail['num_list'][x]) * int(content['bin_num'][x])
 
-        for detail in details:
-            detail_dic = {}
-            tmp_list = detail.split(',')
-            detail_dic['width'] = tmp_list[0]
-            detail_dic['height'] = tmp_list[1]
-            detail_dic['num_list'] = tmp_list[2:]
-            tmp_sum = 0
-            for x in range(2, len(tmp_list)):
-                tmp_sum += int(tmp_list[x]) * int(content['bin_num'][x-2])
+                detail['total'] = tmp_sum
+                total_shape += int(num_shape[i_shape])
+                i_shape += 1
 
-            detail_dic['total'] = tmp_sum
-            total_shape += int(num_shape[i_shape])
-            i_shape += 1
-            detail_list.append(detail_dic)
+        except:
+            # 非json
+            details = product.detail.split(';')
+            detail_list = list()
+            i_shape = 0
+            total_shape = 0
 
-        content['details'] = detail_list
-        content['col_num'] = len(detail_list[0]['num_list']) + 4
+            for detail in details:
+                detail_dic = {}
+                tmp_list = detail.split(',')
+                detail_dic['width'] = tmp_list[0]
+                detail_dic['height'] = tmp_list[1]
+                detail_dic['num_list'] = tmp_list[2:]
+                tmp_sum = 0
+                for x in range(2, len(tmp_list)):
+                    tmp_sum += int(tmp_list[x]) * int(content['bin_num'][x-2])
+
+                detail_dic['total'] = tmp_sum
+                total_shape += int(num_shape[i_shape])
+                i_shape += 1
+                detail_list.append(detail_dic)
+
+            content['details'] = detail_list
+
+        content['col_num'] = len(content['details'][0]['num_list']) + 4
 
         # 每块板的总图形数目
         content['sheet_num_shape'] = del_same_data(same_bin_list, product.sheet_num_shape.split(','))
@@ -247,17 +263,20 @@ def cut_detail(request, p_id):
 
         # 余料信息
         try:
-            empty_sections = product.empty_sections.split(';')
-            content['empty_sections'] = []
-            for e_section in empty_sections:
-                name, num, ares = e_section.split(' ')
-                content['empty_sections'].append({
-                    'name': name,
-                    'num': num,
-                    'ares': ares
-                })
+            content['empty_sections'] = (json.loads(product.empty_sections))
         except:
-            pass
+            try:
+                empty_sections = product.empty_sections.split(';')
+                content['empty_sections'] = []
+                for e_section in empty_sections:
+                    name, num, ares = e_section.split(' ')
+                    content['empty_sections'].append({
+                        'name': name,
+                        'num': num,
+                        'ares': ares
+                    })
+            except:
+                pass
 
         return render(request, 'cut_detail_desc.html', content)
     else:
@@ -304,11 +323,6 @@ def project_detail(request, p_id):
             'pic_url': abin.pic_url,
         })
     return render(request, 'project_detail.html', content)
-
-
-def generate_data(text):
-    json_text = json.loads(text)
-    print(json_text)
 
 
 class ProjectIndexView(generic.ListView):

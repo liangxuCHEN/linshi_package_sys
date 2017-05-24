@@ -1,19 +1,26 @@
 # encoding=utf8
+import os
+import json
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.font_manager import FontProperties
 from matplotlib.figure import Figure
 import matplotlib.patches as patches
-import os
+
 from django_api import settings
 
 from package import PackerSolution
+import single_use_rate
+
+EMPTY_BORDER = 5
+SIDE_CUT = 10  # 板材的切边宽带
 
 
-def use_rate(use_place, width, height):
+def use_rate(use_place, width, height, side_cut=SIDE_CUT):
     total_use = 0
     for b_x, b_y, w, h in use_place:
         total_use += w * h
-    return int(float(total_use)/(width*height+(width+height)*10 - 100) * 10000)/10000.0
+    return int(
+        float(total_use)/(width*height+(width+height)*side_cut - side_cut*side_cut) * 10000)/10000.0
 
 
 def draw_many_pics(positions, width, height, path, border=0):
@@ -225,24 +232,6 @@ def find_the_same_position(positions):
     return num_list
 
 
-def is_valid_empty_section(empty_sections):
-    # TODO: 参数调整预料判断
-    min_size = 200000    # 面积 0.2 m^2
-    min_height = 58      # 最小边长 58 mm
-    total_ares = 0
-    res_empty_section = list()
-    for sections in empty_sections:
-        section_list = list()
-        for section in sections:
-            if section[2] * section[3] > min_size and min(section[2], section[3]) > min_height:
-                section_list.append(section)
-                total_ares += section[2] * section[3]
-
-        res_empty_section.append(section_list)
-
-    return res_empty_section, total_ares
-
-
 def del_same_data(same_bin_list, data_list):
     if len(same_bin_list) != len(data_list):
         return data_list
@@ -254,10 +243,13 @@ def del_same_data(same_bin_list, data_list):
 
 
 def detail_text(shape_list, situation_list, num_list):
-    output_text = ''
+    reslut = list()
 
     for shape in shape_list:
-        output_text += '%s,%s' % (str(shape[1]), str(shape[0]))
+        data_dict = {}
+        data_dict['width'] = str(shape[1])
+        data_dict['height'] = str(shape[0])
+        data_dict['num_list'] = list()
         id_situation = 0
         for situation in situation_list:
             if num_list[id_situation] != 0:
@@ -267,49 +259,86 @@ def detail_text(shape_list, situation_list, num_list):
                         if shape == (position[2], position[3]) or shape == (position[3], position[2]):
                             count += 1
 
-                output_text += ',%d' % count
+                data_dict['num_list'].append(count)
             id_situation += 1
-        # 拆分用‘;’
-        output_text += ';'
 
-    return output_text[:-1]
+        reslut.append(data_dict)
+
+    return json.dumps(reslut)
 
 
-def detail_empty_sections(empty_sections):
+def detail_empty_sections(empty_sections, shape_list, border, is_texture, is_vertical):
+    # 求余料的组件利用情况
     counts = {}
     for e_places in empty_sections:
         for e_p in e_places:
             max_l = max(e_p[2], e_p[3])
             min_l = min(e_p[2], e_p[3])
-            max_l = [str(max_l), int(max_l)][int(max_l) == max_l]
-            min_l = [str(min_l), int(min_l)][int(min_l) == min_l]
-            c_id = "%sx%s" % (max_l, min_l)
+
+            c_id = "%sx%s" % ([str(max_l), int(max_l)][int(max_l) == max_l],
+                              [str(min_l), int(min_l)][int(min_l) == min_l])
             if c_id in counts.keys():
                 counts[c_id]['num'] += 1
             else:
+                # 每块余料看可以放哪些单品
+                package_list = list()
+                for shape in shape_list:
+                    if max(shape[0], shape[1]) < max_l and min(shape[0], shape[1]) < min_l:
+                        tmp_data = {
+                            'shape_x': shape[0],
+                            'shape_y': shape[1],
+                            'width': max_l - EMPTY_BORDER,
+                            'height': min_l - EMPTY_BORDER,
+                            'border': border,
+                            'is_texture': is_texture,
+                            'is_vertical': is_vertical,
+                        }
+                        tmp_res = single_use_rate.main_process(tmp_data, None, EMPTY_BORDER)
+                        if not tmp_res['error']:
+                            package_list.append({
+                                'amount': tmp_res['amount'],
+                                'rate': tmp_res['rate']
+                            })
+                    else:
+                        package_list.append({
+                            'amount': 0,
+                            'rate': 0
+                        })
+
                 counts[c_id] = {
                     'num': 1,
-                    'ares': e_p[2] * e_p[3]
+                    'ares': e_p[2] * e_p[3],
+                    'shape_package': package_list
                 }
-    text = ""
+    result = list()
     for key, value in counts.items():
-        text += "%s %d %s;" % (key, value['num'], str(value['ares']))
-    return text[:-1]
+        value['name'] = key
+        result.append(value)
+    return json.dumps(result)
 
 
 def package_main_function(input_data, pathname):
-    if input_data['bins_num'] != '':
-        bins_num = input_data['bins_num']
-    else:
-        bins_num = None
+
+    bins_num = None
+    min_size = None
+    min_height = None
+    min_width = None
+    if 'bins_num' in input_data.keys():
+        if input_data['bins_num'] != '':
+            bins_num = input_data['bins_num']
+            min_size = int(input_data['min_size'])
+            min_height = int(input_data['min_height'])
+            min_width = int(input_data['min_width'])
 
     # 创建分析对象
     packer = PackerSolution(
         input_data['shape_data'],
         input_data['bin_data'],
+        border=int(input_data['border']),
         bins_num=bins_num,
-        empty_section_min_size=int(input_data['min_size']),
-        empty_section_min_len=int(input_data['min_len']),
+        empty_section_min_size=min_size,
+        empty_section_min_height=min_height,
+        empty_section_min_width=min_width,
     )
 
     algo_list = None
@@ -339,7 +368,7 @@ def package_main_function(input_data, pathname):
 
             draw_one_pic(best_solution, rate_list, bins_list=bins_list,
                          path=pathname + data['bin_key'], border=1, num_list=same_bin_list, title=title,
-                         shapes=shape_list, empty_positions=data['empty_section'])
+                         shapes=shape_list, empty_positions=data['empty_sections'])
 
             # 保存统计信息
             statistics_data.append({
@@ -355,7 +384,13 @@ def package_main_function(input_data, pathname):
                 'name':  data['bin_key'] + ' ' + name,
                 'bin_type': data['bin_key'],
                 'pic_url': pathname + data['bin_key'] + '.png',
-                'empty_sections': detail_empty_sections(data['empty_section']),
+                'empty_sections': detail_empty_sections(
+                    data['empty_sections'],
+                    shape_list,
+                    packer.get_border(),
+                    packer.get_bin_data(data['bin_key'], key='is_texture'),
+                    packer.get_bin_data(data['bin_key'], key='is_vertical')
+                ),
                 'algo_id': data['algo_id'],
             })
         # 返回结果

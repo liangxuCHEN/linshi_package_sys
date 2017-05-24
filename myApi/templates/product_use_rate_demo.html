@@ -15,8 +15,9 @@
     <textarea rows="4" cols="50" name="bin_data">{{ bin_data }}</textarea><br>
     <hr>
     <p>余料判别参数调整</p>
-    <label>余料最小面积(mm^2)：</label><input type="number" name="min_size" min="0"  value="200000"/>
-    <label>余料短边最小值(mm)：</label><input type="number" name="min_len" min="0" value="58"/>
+    <label>余料最小面积(mm^2)：</label><input type="number" name="min_size" min="0"  value="80000"/><br>
+    <label>余料长边最小值(mm)：</label><input type="number" name="min_width" min="0" value="380"/><br>
+    <label>余料短边最小值(mm)：</label><input type="number" name="min_height" min="0" value="190"/>
     <p>余料再利用数据格式：板木编号,长,宽,数量，例子：A 2130*1010*18 1;A 630*510*18 3</p>
     <textarea rows="2" cols="50" name="bins_num">{{ bins_num }}</textarea><br>
     <input type="submit" value="提交" />

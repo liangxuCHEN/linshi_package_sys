@@ -7,6 +7,7 @@ from package_tools import use_rate, draw_one_pic
 输入组件尺寸和板材尺寸
 返回使用率和排列方式
 """
+SIDE_CUT = 10  # 板材的切边宽带
 
 
 def update_empty_place(solution, shape_x, shape_y, border):
@@ -154,7 +155,7 @@ def use_rate_data_is_valid(data):
     return {'error': False}
 
 
-def main_process(data, pathname):
+def main_process(data, pathname, side_cut=SIDE_CUT):
     shape_x = int(data['shape_x'])
     shape_y = int(data['shape_y'])
     WIDTH = int(data['width'])
@@ -201,12 +202,13 @@ def main_process(data, pathname):
             else:
                 break
 
-    rate = use_rate(situation, WIDTH, HEIGHT)
+    rate = use_rate(situation, WIDTH, HEIGHT, side_cut)
     rate = int(rate*100)/100.0
-    try:
-        draw_one_pic([situation], [rate], width=WIDTH, height=HEIGHT, path=pathname, border=1)
-    except Exception as e:
-        return {'error': True, 'info': u'作图过程中出错，没有图片', 'rate':rate}
+    if pathname is not None:
+        try:
+            draw_one_pic([situation], [rate], width=WIDTH, height=HEIGHT, path=pathname, border=1)
+        except Exception as e:
+            return {'error': True, 'info': u'作图过程中出错，没有图片', 'rate':rate}
 
-    return {'rate': rate, 'error': False}
+    return {'rate': rate, 'error': False, 'amount': len(situation)}
 

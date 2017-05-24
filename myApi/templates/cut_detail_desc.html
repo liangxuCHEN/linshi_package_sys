@@ -49,10 +49,18 @@
     </table><br>
     {% if empty_sections %}
     <table border="1" style="border-spacing: 1px;border-collapse: collapse;">
-        <thead><tr><td>余料</td><td>数量</td><td>面积(mm^2)</td></tr></thead>
+        <thead><tr><td>余料</td><td>数量</td><td>面积(mm^2)</td>
+            {% for detail in details %}
+                <td>#{{forloop.counter0}}</td>
+            {% endfor %}
+        </tr></thead>
         <tbody>
         {% for section in empty_sections %}
-        <tr><td>{{section.name}}</td><td>{{section.num}}</td> <td>{{section.ares}}</td></tr>
+        <tr><td>{{section.name}}</td><td>{{section.num}}</td> <td>{{section.ares}}</td>
+            {% for reuse_detail in section.shape_package %}
+                <td>{{reuse_detail.amount}}({{reuse_detail.rate}})</td>
+            {% endfor %}
+        </tr>
          {% endfor %}
         </tbody>
     </table>
