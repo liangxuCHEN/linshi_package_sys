@@ -169,19 +169,19 @@ def draw_one_pic(positions, rates, width=None, height=None, path=None, border=0,
     fig_height = num * 4
     fig1 = Figure(figsize=(8, fig_height))
     # 使用中文
-    path_ttc = os.path.join(settings.BASE_DIR, 'static')
-    path_ttc = os.path.join(path_ttc, 'simsun.ttc')
-    font_set = FontProperties(fname=path_ttc, size=12)
+    # path_ttc = os.path.join(settings.BASE_DIR, 'static')
+    # path_ttc = os.path.join(path_ttc, 'simsun.ttc')
+    # font_set = FontProperties(fname=path_ttc, size=12)
 
     if title is not None:
-        fig1.suptitle(title, fontweight='bold', fontproperties=font_set)
+        fig1.suptitle(title, fontweight='bold')
     FigureCanvas(fig1)
 
     for position in positions:
         if num_list[i_p] != 0:
             ax1 = fig1.add_subplot(num, 1, i_pic, aspect='equal')
             i_pic += 1
-            ax1.set_title(u'利用率: %s, 数量: %d' % (str(rates[i_p]), num_list[i_p]), fontproperties=font_set)
+            ax1.set_title('rate: %s, piece: %d' % (str(rates[i_p]), num_list[i_p]))
             output_obj = list()
             for v in position:
                 output_obj.append(
@@ -377,7 +377,7 @@ def package_main_function(input_data, pathname):
                 # 余料总面积
                 empty_ares_list.append(empty_ares(empty_sections[s_id]))
 
-            title = u'平均利用率: %s' % str(data['rate'])
+            title = 'average rate: %s' % str(data['rate'])
             # 返回唯一的排版列表，以及数量
             same_bin_list = find_the_same_position(best_solution)
 
