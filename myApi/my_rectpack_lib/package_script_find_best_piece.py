@@ -1,5 +1,5 @@
 # encoding=utf8
-import sys;
+import sys
 # sys.path.append("/home/linshi_package_sys/")
 import os
 from datetime import datetime as dt
@@ -39,10 +39,11 @@ def log_init(file_name):
 
 def init_connection():
     # 'mysql://uid:pwd@localhost/mydb?charset=utf8'
-    engine = create_engine('mssql+pymssql://%s:%s@%s/?charset=utf8' % (
+    engine = create_engine('mssql+pymssql://%s:%s@%s/%s' % (
         my_settings.HOST_USER,
         my_settings.HOST_PASSWORD,
-        my_settings.HOST
+        my_settings.HOST,
+        my_settings.DB
     ), poolclass=NullPool)
 
     connection = engine.connect()
@@ -67,7 +68,7 @@ def update_data(data):
 
 def get_data():
     # init output connection
-    log.info('initiate the table class....')
+    log.info('get the table class....')
     engine, connection, table_schema = init_connection()
     # 创建Session:
     Session = sessionmaker(bind=engine)
