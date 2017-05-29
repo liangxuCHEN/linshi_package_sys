@@ -1,4 +1,4 @@
-from .maxrects import MaxRectsBssf
+from maxrects import MaxRectsBssf
 
 import operator
 import itertools

@@ -1,4 +1,4 @@
-from .geometry import Rectangle
+from geometry import Rectangle
 
 
 class PackingAlgorithm(object):

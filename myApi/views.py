@@ -108,7 +108,6 @@ def single_use_rate_demo(request):
 @csrf_exempt
 def product_use_rate(request):
     if request.method == 'POST':
-        print request.POST
         # 是否已经有
         projects = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data'])
         if len(projects) > 0:
