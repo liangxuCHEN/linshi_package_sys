@@ -1,4 +1,6 @@
 # encoding=utf8
+import sys;
+# sys.path.append("/home/linshi_package_sys/")
 import os
 from datetime import datetime as dt
 import sqlalchemy
