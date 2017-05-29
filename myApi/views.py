@@ -13,7 +13,7 @@ from django.views import generic
 
 from myApi.forms import AlgoForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
-from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function
+from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function, find_best_piece
 
 from myApi.models import Userate, ProductRateDetail, Project
 
@@ -108,6 +108,7 @@ def single_use_rate_demo(request):
 @csrf_exempt
 def product_use_rate(request):
     if request.method == 'POST':
+        print request.POST
         # 是否已经有
         projects = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data'])
         if len(projects) > 0:
@@ -168,6 +169,14 @@ def product_use_rate_demo(request):
     else:
         form = AlgoForm()
         return render(request, 'product_use_rate_demo.html', {'form': form})
+
+@csrf_exempt
+def best_piece(request):
+    if request.method == 'POST':
+        result = find_best_piece(request.POST)
+        return HttpResponse(json.dumps(result), content_type="application/json")
+    else:
+        return render(request, 'best_piece.html')
 
 
 def create_project(results, post_data, filename):

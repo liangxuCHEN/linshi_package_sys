@@ -1,12 +1,10 @@
 # encoding=utf8
-import os
 import json
+import copy
+import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from matplotlib.font_manager import FontProperties
 from matplotlib.figure import Figure
 import matplotlib.patches as patches
-
-from django_api import settings
 
 from package import PackerSolution
 import single_use_rate
@@ -416,3 +414,54 @@ def package_main_function(input_data, pathname):
         # 有错误，返回错误信息
         return {'error': True, 'info': packer.error_info()}
 
+
+def find_best_piece(input_data):
+    # 保存之前的五个结果，求方差
+    rate_res = list()
+    num_save = 5             # 参与计算的数量
+    max_var_rate = 0.00001   # 方差阈值
+    num_pic = 1
+    best_pic = 1
+    best_rate = 0
+    best_rates = None
+    while True:
+        # 创建分析对象
+        packer = PackerSolution(
+            input_data['shape_data'],
+            input_data['bin_data'],
+            border=int(input_data['border']),
+            num_pic=num_pic
+        )
+        if packer.is_valid():
+            # 选择几种经常用的算法
+            res = packer.find_solution(algo_list=[0, 4, 40, 8, 20, 44, 24])
+            # 平均使用率
+            total_rate = 0
+            for data in res:
+                total_rate += data['rate']
+            tmp_avg_rate = total_rate / len(res)
+
+            # 记录最大值
+            if best_rate < tmp_avg_rate:
+                best_rate = tmp_avg_rate
+                best_pic = num_pic
+                best_rates = [(data['bin_key'], data['rate']) for data in res]
+
+            if num_pic > num_save:
+                rate_res.append(tmp_avg_rate)
+                np_arr = np.array(rate_res[-1 * num_save:])
+                var_rate = np_arr.var()
+                if var_rate < max_var_rate:
+                    # 少于阈值返回最佳值
+                    return {
+                        'error': False,
+                        'piece': best_pic,
+                        'rates': best_rates
+                    }
+            else:
+                rate_res.append(tmp_avg_rate)
+
+        else:
+            return {'error': True, 'info': packer.error_info()}
+
+        num_pic += 1
