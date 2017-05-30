@@ -110,9 +110,11 @@ def single_use_rate_demo(request):
 def product_use_rate(request):
     if request.method == 'POST':
         # 是否已经有
-        projects = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data'])
-        if len(projects) > 0:
-            content = 'project_detail/%d' % projects[0].id
+        project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
+        if project:
+            project.comment = request.POST.get('project_comment')
+            project.save()
+            content = 'project_detail/%d' % project.id
             return HttpResponse(json.dumps(content), content_type="application/json")
 
         filename = str(time.time()).split('.')[0]
@@ -138,12 +140,14 @@ def product_use_rate(request):
 def product_use_rate_demo(request):
     if request.method == 'POST':
         # 是否已经有
-        projects = Project.objects.filter(data_input=request.POST['shape_data']+request.POST['bin_data'])
-        if len(projects) > 0:
+        project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
+        if project:
+            project.comment = request.POST.get('project_comment')
+            project.save()
             content = {
                 'shape_data': request.POST['shape_data'],
                 'bin_data': request.POST['bin_data'],
-                'project_id': projects[0].id,
+                'project_id': project.id,
                 'form': AlgoForm()
             }
             return render(request, 'product_use_rate_demo.html', content)

@@ -7,7 +7,7 @@ import sqlalchemy
 from sqlalchemy.pool import NullPool
 import json
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine, bindparam
+from sqlalchemy import create_engine, bindparam, and_
 import logging
 import urllib2
 from urllib import urlencode
@@ -218,8 +218,11 @@ def generate_work(input_data):
 
     for data in datas:
         # 获取任务状态
-        res = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(
-            table_schema.columns.BOMVersion == data['BOMVersion']).first()
+        shape_data = json.dumps(data['ShapeData'], ensure_ascii=False)
+        bin_data = json.dumps(data['BinData'], ensure_ascii=False)
+        res = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(and_(
+            table_schema.columns.ShapeData == shape_data, table_schema.columns.BinData == bin_data
+        )).first()
         if res:
             result.append({
                 'BOMVersion': data['BOMVersion'],
@@ -236,8 +239,8 @@ def generate_work(input_data):
                 'BOMVersion': data['BOMVersion'],
                 'Status': 0,
                 'Result': u' ',
-                'ShapeData': json.dumps(data['ShapeData'], ensure_ascii=False),
-                'BinData': json.dumps(data['BinData'], ensure_ascii=False),
+                'ShapeData': shape_data,
+                'BinData': bin_data,
                 'Created': created
             })
 
@@ -250,6 +253,10 @@ def generate_work(input_data):
         except Exception as e:
             log.error('can not saving the works into the db')
             log.error(e)
+            # 如果出错发送邮件通知
+            body = '<p>运行 package_script_find_best_piece.py 出错，不能把任务保存到数据库</p>'
+            body += '<p>错误信息: %s</p>' % e
+            send_mail_process(body)
 
     session.close()
     connection.close()
