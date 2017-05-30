@@ -1,6 +1,5 @@
 # encoding=utf8
 import json
-import copy
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -8,6 +7,7 @@ import matplotlib.patches as patches
 
 from package import PackerSolution
 import single_use_rate
+from myApi import my_settings
 
 EMPTY_BORDER = 5
 SIDE_CUT = 10  # 板材的切边宽带
@@ -418,8 +418,6 @@ def package_main_function(input_data, pathname):
 def find_best_piece(input_data):
     # 保存之前的五个结果，求方差
     rate_res = list()
-    num_save = 5             # 参与计算的数量
-    max_var_rate = 0.00001   # 方差阈值
     num_pic = 1
     best_pic = 1
     best_rate = 0
@@ -447,11 +445,11 @@ def find_best_piece(input_data):
                 best_pic = num_pic
                 best_rates = [(data['bin_key'], data['rate']) for data in res]
 
-            if num_pic > num_save:
+            if num_pic > my_settings.NUM_SAVE :
                 rate_res.append(tmp_avg_rate)
-                np_arr = np.array(rate_res[-1 * num_save:])
+                np_arr = np.array(rate_res[-1 * my_settings.NUM_SAVE:])
                 var_rate = np_arr.var()
-                if var_rate < max_var_rate:
+                if var_rate < my_settings.MAX_VAR_RATE:
                     # 少于阈值返回最佳值
                     return {
                         'error': False,

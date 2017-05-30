@@ -11,11 +11,71 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
 import os
+import socket
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {
+       'standard': {
+            'format': '%(asctime)s [%(threadName)s:%(thread)d] [%(name)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s'}
+    },
+    'filters': {},
+    'handlers': {
+        'null': {
+            'level': 'DEBUG',
+            'class': 'logging.NullHandler',
+        },
+        'debug': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, "static", "log", 'debug.log'),  # file name
+            'maxBytes': 1024*1024*5,  # file size
+            'backupCount': 3,
+            'formatter': 'standard',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'include_html': True,
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False
+        },
+        'django.request': {
+            'handlers': ['debug'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    }
+}
 
-
+ADMINS = (
+    ('louis', 'chenliangxu68@163.com'),
+)
+SEND_BROKEN_LINK_EMAILS = True
+MANAGERS = ADMINS
+# Email
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.163.com'
+EMAIL_PORT = 25
+EMAIL_HOST_USER = 'xxxxxxx@163.com'
+EMAIL_HOST_PASSWORD = 'xxxxxxx'
+EMAIL_SUBJECT_PREFIX = 'website_linshi_sys'
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = SERVER_EMAIL = EMAIL_HOST_USER
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
@@ -23,7 +83,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'scnpa^pn*_12ymkspo7jr+$8rd)az6_qn*d1@m=@vk8t_e%tix'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+ip_address = socket.gethostbyname(socket.gethostname())
+if ip_address == '192.168.3.187':
+    DEBUG = False
+else:
+    DEBUG = True
 
 
 # Application definition

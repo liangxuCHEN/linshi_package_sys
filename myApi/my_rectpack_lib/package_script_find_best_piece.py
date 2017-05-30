@@ -1,6 +1,6 @@
 # encoding=utf8
 import sys
-# sys.path.append("/home/linshi_package_sys/")
+# sys.path.append("/home/django/linshi_package_sys/")
 import os
 from datetime import datetime as dt
 import sqlalchemy
@@ -223,6 +223,7 @@ def generate_work(input_data):
         res = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(and_(
             table_schema.columns.ShapeData == shape_data, table_schema.columns.BinData == bin_data
         )).first()
+        # 已存在任务，返回任务状态和结果
         if res:
             result.append({
                 'BOMVersion': data['BOMVersion'],
@@ -230,6 +231,7 @@ def generate_work(input_data):
                 'Result': json.loads(res.Result)
             })
         else:
+            # 新任务
             result.append({
                 'BOMVersion': data['BOMVersion'],
                 'Satuts': 0,
@@ -254,7 +256,7 @@ def generate_work(input_data):
             log.error('can not saving the works into the db')
             log.error(e)
             # 如果出错发送邮件通知
-            body = '<p>运行 package_script_find_best_piece.py 出错，不能把任务保存到数据库</p>'
+            body = '<p>运行 package_script_find_best_piece.py 出错，不能把新任务保存到数据库</p>'
             body += '<p>错误信息: %s</p>' % e
             send_mail_process(body)
 
