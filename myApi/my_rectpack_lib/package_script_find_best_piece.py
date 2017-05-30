@@ -184,11 +184,7 @@ def http_post(num_piece, shape_data, bin_data):
 def send_mail_process(body):
     # 如果出错发送邮件通知
     mail_to = 'chenliangxu68@163.com'
-    res = send_mail(mail_to, u"林氏利用率API邮件提醒", body)
-    if res:
-        log.info('Has sent the email to Liangxu email')
-    else:
-        log.error('Can not send the email')
+    send_mail(mail_to, u"林氏利用率API邮件提醒", body)
 
 
 def multi_piece(num_piece, shape_data, bin_data):
@@ -205,12 +201,14 @@ def generate_work(input_data):
     # date
     created = dt.today()
     log = log_init('save_works%s.log' % created.strftime('%Y_%m_%d'))
-    datas = json.loads(input_data['works'])
-    log.info('Loading the data....')
+    try:
+        datas = json.loads(input_data['works'])
+    except ValueError:
+        return {'Error': u'数据格式错误，不符合json格式'}
     result = list()
     insert_list = list()
+    update_list = list()
     # connection
-    log.info('initiation the db connection....')
     engine, connection, table_schema = init_connection()
     # 创建Session:
     Session = sessionmaker(bind=engine)
@@ -218,17 +216,26 @@ def generate_work(input_data):
 
     for data in datas:
         # 获取任务状态
-        shape_data = json.dumps(data['ShapeData'], ensure_ascii=False)
-        bin_data = json.dumps(data['BinData'], ensure_ascii=False)
+        try:
+            shape_data = json.dumps(data['ShapeData'], ensure_ascii=False)
+            bin_data = json.dumps(data['BinData'], ensure_ascii=False)
+        except KeyError:
+            return {'Error': u'数据中缺少 ShapeData 或者 BinData 的数据'}
         res = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(and_(
             table_schema.columns.ShapeData == shape_data, table_schema.columns.BinData == bin_data
         )).first()
         # 已存在任务，返回任务状态和结果
         if res:
+            tmp_result = ''
+            try:
+                tmp_result = json.loads(res.Result)
+            except:
+                pass
+
             result.append({
                 'BOMVersion': data['BOMVersion'],
                 'Satuts': res.Status,
-                'Result': json.loads(res.Result)
+                'Result': tmp_result
             })
         else:
             # 新任务
@@ -237,24 +244,51 @@ def generate_work(input_data):
                 'Satuts': 0,
                 'Result': ''
             })
-            insert_list.append({
-                'BOMVersion': data['BOMVersion'],
-                'Status': 0,
-                'Result': u' ',
-                'ShapeData': shape_data,
-                'BinData': bin_data,
-                'Created': created
-            })
+            # 版本号是否存在
+            is_exist = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(
+                table_schema.columns.BOMVersion == data['BOMVersion']).first()
+            # 存在就更新数据，不存在就插入新数据
+            if is_exist:
+                update_list.append({
+                    'bom': data['BOMVersion'],
+                    'status': 0,
+                    'result': u'',
+                    'shapeData': shape_data,
+                    'binData': bin_data,
+                    'created': created
+                })
+            else:
+                insert_list.append({
+                    'BOMVersion': data['BOMVersion'],
+                    'Status': 0,
+                    'Result': u'',
+                    'ShapeData': shape_data,
+                    'BinData': bin_data,
+                    'Created': created
+                })
 
     # update db
+    if len(update_list) > 0:
+        sql_text = table_schema.update().where(
+            table_schema.columns.BOMVersion == bindparam('bom')).values(
+            Status=bindparam('status'),
+            Result=bindparam('result'),
+            ShapeData=bindparam('shapeData'),
+            BinData=bindparam('binData'),
+            Created=bindparam('created')
+        )
+        try:
+            connection.execute(sql_text, update_list)
+        except Exception as e:
+            # 如果出错发送邮件通知
+            body = '<p>运行 package_script_find_best_piece.py 出错，不能把新任务更新到数据库</p>'
+            body += '<p>错误信息: %s</p>' % e
+            send_mail_process(body)
     if len(insert_list) > 0:
         try:
-            log.info('saving %d works into the db....' % len(insert_list))
             connection.execute(table_schema.insert(), insert_list)
             session.commit()
         except Exception as e:
-            log.error('can not saving the works into the db')
-            log.error(e)
             # 如果出错发送邮件通知
             body = '<p>运行 package_script_find_best_piece.py 出错，不能把新任务保存到数据库</p>'
             body += '<p>错误信息: %s</p>' % e
@@ -262,10 +296,10 @@ def generate_work(input_data):
 
     session.close()
     connection.close()
-    log.info('return %d results from db' % len(result))
     return result
 
 if __name__ == '__main__':
+    global log
     end_day = dt.today()
     log = log_init('find_best_piece%s.log' % end_day.strftime('%Y_%m_%d'))
     rows = get_data()

@@ -6,7 +6,7 @@ import copy
 from collections import defaultdict
 
 from django_api import settings
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views import generic
@@ -345,9 +345,7 @@ def statistics_algo(request):
 
 
 def project_detail(request, p_id):
-    project = Project.objects.get(pk=p_id)
-    if project is None:
-        return render(request, 'cut_detail_desc.html', {'error': u'没有找到，请检查ID'})
+    project = get_object_or_404(Project, pk=p_id)
     bin_list = project.products.all()
     content = {
         'created': project.created,
