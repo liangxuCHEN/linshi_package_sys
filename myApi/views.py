@@ -222,7 +222,7 @@ def create_project(results, post_data, filename):
 
 
 def cut_detail(request, p_id):
-    product = ProductRateDetail.objects.get(pk=p_id)
+    product = get_object_or_404(ProductRateDetail, pk=p_id)
     content = {
         'sheet_name': product.sheet_name,
         'num_sheet': product.num_sheet,
