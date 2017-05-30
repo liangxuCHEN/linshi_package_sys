@@ -13,7 +13,8 @@ urlpatterns = [
     url(r'^product_use_rate_demo$', views.product_use_rate_demo, name='product_use_rate_demo'),
     url(r'^product/(?P<p_id>\d+)/$', views.cut_detail, name='cut_detail'),
     url(r'^project_detail/(?P<p_id>\d+)/$', views.project_detail, name='project_detail'),
-    url(r'^best_piece/$', views.best_piece, name='best_piece'),
+    url(r'^best_piece$', views.best_piece, name='best_piece'),
+    url(r'^save_work$', views.save_work, name='save_work'),
     url(r'^admin/', include(admin.site.urls)),
 ]
 urlpatterns += staticfiles_urlpatterns()

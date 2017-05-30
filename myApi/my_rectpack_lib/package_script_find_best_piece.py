@@ -39,7 +39,7 @@ def log_init(file_name):
 
 def init_connection():
     # 'mysql://uid:pwd@localhost/mydb?charset=utf8'
-    engine = create_engine('mssql+pymssql://%s:%s@%s/%s' % (
+    engine = create_engine('mssql+pymssql://%s:%s@%s/%s?charset=utf8' % (
         my_settings.HOST_USER,
         my_settings.HOST_PASSWORD,
         my_settings.HOST,
@@ -199,6 +199,62 @@ def multi_piece(num_piece, shape_data, bin_data):
         shape['Amount'] = shape['Amount'] * num_piece
     shape_data = json.dumps(shape_data)
     return shape_data, bin_data
+
+
+def generate_work(input_data):
+    # date
+    created = dt.today()
+    log = log_init('save_works%s.log' % created.strftime('%Y_%m_%d'))
+    datas = json.loads(input_data['works'])
+    log.info('Loading the data....')
+    result = list()
+    insert_list = list()
+    # connection
+    log.info('initiation the db connection....')
+    engine, connection, table_schema = init_connection()
+    # 创建Session:
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    for data in datas:
+        # 获取任务状态
+        res = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(
+            table_schema.columns.BOMVersion == data['BOMVersion']).first()
+        if res:
+            result.append({
+                'BOMVersion': data['BOMVersion'],
+                'Satuts': res.Status,
+                'Result': json.loads(res.Result)
+            })
+        else:
+            result.append({
+                'BOMVersion': data['BOMVersion'],
+                'Satuts': 0,
+                'Result': ''
+            })
+            insert_list.append({
+                'BOMVersion': data['BOMVersion'],
+                'Status': 0,
+                'Result': u' ',
+                'ShapeData': json.dumps(data['ShapeData'], ensure_ascii=False),
+                'BinData': json.dumps(data['BinData'], ensure_ascii=False),
+                'Created': created
+            })
+
+    # update db
+    if len(insert_list) > 0:
+        try:
+            log.info('saving %d works into the db....' % len(insert_list))
+            connection.execute(table_schema.insert(), insert_list)
+            session.commit()
+        except Exception as e:
+            log.error('can not saving the works into the db')
+            log.error(e)
+
+    session.close()
+    connection.close()
+    log.info('return %d results from db' % len(result))
+    return result
 
 if __name__ == '__main__':
     end_day = dt.today()

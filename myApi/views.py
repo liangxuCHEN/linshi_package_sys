@@ -14,6 +14,7 @@ from django.views import generic
 from myApi.forms import AlgoForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
 from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function, find_best_piece
+from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work
 
 from myApi.models import Userate, ProductRateDetail, Project
 
@@ -176,6 +177,14 @@ def best_piece(request):
         return HttpResponse(json.dumps(result), content_type="application/json")
     else:
         return render(request, 'best_piece.html')
+
+@csrf_exempt
+def save_work(request):
+    if request.method == 'POST':
+        result = generate_work(request.POST)
+        return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
+    else:
+        return render(request, 'add_work.html')
 
 
 def create_project(results, post_data, filename):
