@@ -201,13 +201,16 @@ def generate_work(input_data):
     # date
     created = dt.today()
     log = log_init('save_works%s.log' % created.strftime('%Y_%m_%d'))
+    log.info('Loading data ....')
     try:
         datas = json.loads(input_data['works'])
     except ValueError:
-        return {'Error': u'数据格式错误，不符合json格式'}
+        log.error('can not decode json data ....')
+        return {'ErrDesc': u'数据格式错误，不符合json格式', 'IsErr': True, 'data': ''}
     result = list()
     insert_list = list()
     update_list = list()
+    log.info('connecting the DB ....')
     # connection
     engine, connection, table_schema = init_connection()
     # 创建Session:
@@ -220,7 +223,8 @@ def generate_work(input_data):
             shape_data = json.dumps(data['ShapeData'], ensure_ascii=False)
             bin_data = json.dumps(data['BinData'], ensure_ascii=False)
         except KeyError:
-            return {'Error': u'数据中缺少 ShapeData 或者 BinData 的数据'}
+            log.error('missing the some of data ....')
+            return {'ErrDesc': u'数据中缺少 ShapeData 或者 BinData 的数据', 'IsErr': True, 'data': ''}
         res = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(and_(
             table_schema.columns.ShapeData == shape_data, table_schema.columns.BinData == bin_data
         )).first()
@@ -268,6 +272,7 @@ def generate_work(input_data):
                 })
 
     # update db
+    log.info('saving the new works into DB ....')
     if len(update_list) > 0:
         sql_text = table_schema.update().where(
             table_schema.columns.BOMVersion == bindparam('bom')).values(
@@ -281,6 +286,7 @@ def generate_work(input_data):
             connection.execute(sql_text, update_list)
         except Exception as e:
             # 如果出错发送邮件通知
+            log.error('can not update the data in the db and send the mail to admin ....')
             body = '<p>运行 package_script_find_best_piece.py 出错，不能把新任务更新到数据库</p>'
             body += '<p>错误信息: %s</p>' % e
             send_mail_process(body)
@@ -290,13 +296,15 @@ def generate_work(input_data):
             session.commit()
         except Exception as e:
             # 如果出错发送邮件通知
+            log.error('can not insert the data into the db and send the mail to admin ....')
             body = '<p>运行 package_script_find_best_piece.py 出错，不能把新任务保存到数据库</p>'
             body += '<p>错误信息: %s</p>' % e
             send_mail_process(body)
 
     session.close()
     connection.close()
-    return result
+    log.info('-------------finish and return the result----------------')
+    return {'ErrDesc': u'操作成功', 'IsErr': False, 'data': result}
 
 if __name__ == '__main__':
     global log
