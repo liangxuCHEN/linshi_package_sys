@@ -287,7 +287,7 @@ class PackerOnline(object):
         Return a list of the dimmensions of the bins in use, that is closed
         or open containing at least one rectangle
         """
-        return [(b.width, b.height) for b in self]
+        return [(b.width, b.height, b.cut_linear) for b in self]
 
     def validate_packing(self):
         for b in self:
@@ -371,7 +371,6 @@ class Packer(PackerOnline):
             super(Packer, self).add_rect(*r)
 
 
- 
 class PackerBNF(Packer, PackerBNFMixin):
     """
     BNF (Bin Next Fit): Only one open bin, if rectangle doesn't fit

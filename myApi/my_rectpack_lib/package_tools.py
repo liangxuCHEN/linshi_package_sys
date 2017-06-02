@@ -324,17 +324,23 @@ def detail_empty_sections(empty_sections, shape_list, border, is_texture, is_ver
 
 
 def package_main_function(input_data, pathname):
-
     bins_num = None
     min_size = None
     min_height = None
     min_width = None
+    cut_linear_p = 30       # 切割线重要系数
+    empty_section_p = 70    # 余料重要系数
     if 'bins_num' in input_data.keys():
         if input_data['bins_num'] != '':
             bins_num = input_data['bins_num']
             min_size = int(input_data['min_size'])
             min_height = int(input_data['min_height'])
             min_width = int(input_data['min_width'])
+
+    if 'use_rate_p' in input_data.keys():
+            cut_linear_p = int(input_data['cut_linear_p'])
+            empty_section_p = int(input_data['empty_section_p'])
+
 
     # 创建分析对象
     packer = PackerSolution(
@@ -345,6 +351,8 @@ def package_main_function(input_data, pathname):
         empty_section_min_size=min_size,
         empty_section_min_height=min_height,
         empty_section_min_width=min_width,
+        cut_linear_p=cut_linear_p,
+        empty_section_p=empty_section_p
     )
 
     algo_list = None
@@ -394,7 +402,7 @@ def package_main_function(input_data, pathname):
                 'sheet_num_shape': str([len(s) for s in best_solution])[1:-1],
                 'rates': str(rate_list)[1:-1],
                 'sheet': name,
-                'name':  data['bin_key'] + ' ' + name,
+                'name':  data['bin_key'] + ' ' + name + u' 切割线(mm):%s' % str(data['cut_linear']),
                 'bin_type': data['bin_key'],
                 'pic_url': pathname + data['bin_key'] + '.png',
                 'empty_sections': detail_empty_sections(

@@ -18,6 +18,7 @@ class PackingAlgorithm(object):
         self.rot = rot
         self.border = border
         self.rectangles = []
+        self.cut_linear = 0
         self._surface = Rectangle(0, 0, width, height)
         self.reset()
 
@@ -134,6 +135,7 @@ class PackingAlgorithm(object):
 
     def reset(self):
         self.rectangles = []    # List of placed Rectangles.
+        self.cut_linear = 0
 
 
 

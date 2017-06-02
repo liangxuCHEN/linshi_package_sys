@@ -1,5 +1,6 @@
 # encoding=utf8
 import json
+import sys
 from packer import newPacker
 import guillotine as guillotine
 import packer as packer
@@ -28,13 +29,15 @@ def output_res(all_rects, bins_list):
 
     # 计算使用率
     total_rate = 0
+    # 切割线长度
+    total_cut_linear = 0
     for s_id in range(0, len(all_positions)):
         r = use_rate(all_positions[s_id], bins_list[s_id][0], bins_list[s_id][1])
         total_rate += r
-
+        total_cut_linear += bins_list[s_id][2]
     avg_rate = int((total_rate / len(all_positions) * 10000)) / 10000.0
     # print('avg rate : %s, use %d pec bin' % (str(avg_rate), all_rects[-1][0] + 1))
-    return avg_rate, all_positions
+    return avg_rate, all_positions, total_cut_linear
 
 
 def use_rate(use_place, width, height):
@@ -346,7 +349,7 @@ class PackerSolution(object):
     """
     compare all the packer algorithm
     """
-    def __init__(self, rects_data, bins_data, border=5,
+    def __init__(self, rects_data, bins_data, border=5, cut_linear_p=30, empty_section_p=100,
                  bins_num=None, num_pic=1,
                  empty_section_min_size=None,
                  empty_section_min_height=None,
@@ -361,6 +364,8 @@ class PackerSolution(object):
         self._empty_section_min_size = empty_section_min_size
         self._empty_section_min_height = empty_section_min_height
         self._empty_section_min_width = empty_section_min_width
+        self._cut_linear_p = cut_linear_p
+        self._empty_section_p = empty_section_p
         try:
             self._data = get_shape_data_from_json(rects_data, bins_data, bins_num, num_pic=num_pic)
         except:
@@ -457,12 +462,11 @@ class PackerSolution(object):
         # 所有算法组合
         # 当排版的组件非常多，需要提高反应速度可以选择BFF（首次适应）算法
         # bin_algos = [packer.PackingBin.BBF, packer.PackingBin.BFF]
-        # 这里选择BBF（最佳适应）算法，可以较好保留大块空余地方。
-        bin_algos = [packer.PackingBin.BBF]
+        bin_algos = [packer.PackingBin.BBF, packer.PackingBin.BFF, packer.PackingBin.BNF]
         # 这里是选择板材切割算法guillotine,
         # 选择区域标准：BAF:找最佳面积适应, BLSF:最佳长边适应值, BSSF:最佳短边边适应值
         # 分割剩余区域标准：SLAS:剩余短轴分割,LAS:长轴分割,MAXAS:剩余大面积分割:,LLAS:剩余长轴分割,MINAS:剩余小面积分割,
-        # TODO：如果是激光切割，可以使用maxrects算法
+        # 如果是激光切割，可以使用maxrects算法
         pack_algos = [guillotine.GuillotineBafLas, guillotine.GuillotineBafMaxas,
                       guillotine.GuillotineBafMinas, guillotine.GuillotineBafSlas, guillotine.GuillotineBafLlas,
                       guillotine.GuillotineBlsfLas, guillotine.GuillotineBlsfMaxas,
@@ -515,10 +519,11 @@ class PackerSolution(object):
         index_packer = 0
         best_empty_positions = None
         max_empty_ares = 0
+        min_cut_linear = sys.maxint
 
         for my_pack in list_packer:
             my_pack.pack()
-            avg_rate, tmp_solution = output_res(my_pack.rect_list(), my_pack.bin_list())
+            avg_rate, tmp_solution, tmp_cut_linear = output_res(my_pack.rect_list(), my_pack.bin_list())
             bin_num = len(tmp_solution)
             # 余料判断
             tmp_empty_position, empty_ares = is_valid_empty_section(
@@ -528,18 +533,30 @@ class PackerSolution(object):
                 self._empty_section_min_width,
                 self.get_bin_data(bin_key, key='is_texture')
             )
-            # print(u'算法%d >>> 平均利用率:%s, 使用%d块, 余料总面积:%d' % (
-            #    index_packer, str(avg_rate), len(tmp_solution), empty_ares))
+            # print(u'算法%d >>> 平均利用率:%s, 使用%d块, 余料总面积:%d, 切割线:%d' % (
+            #     index_packer, str(avg_rate), bin_num, empty_ares, tmp_cut_linear))
 
-            # 找最优解
-            if min_bin_num > bin_num or (avg_rate > best_rate and bin_num == min_bin_num) or (
-                                bin_num == min_bin_num and avg_rate == best_rate and empty_ares > max_empty_ares):
+            # 找最优解 块数，利用率，余料，切割线
+            if min_bin_num > bin_num:
                 best_solution = tmp_solution
                 min_bin_num = bin_num
                 best_rate = avg_rate
                 best_empty_positions = tmp_empty_position
                 max_empty_ares = empty_ares
+                min_cut_linear = tmp_cut_linear
                 best_packer = index_packer
+            elif min_bin_num == bin_num:
+                is_better = float(empty_ares - max_empty_ares) / max_empty_ares * self._empty_section_p
+                is_better += float(min_cut_linear - tmp_cut_linear) / min_cut_linear * self._cut_linear_p
+                if is_better > 0:
+                    best_solution = tmp_solution
+                    min_bin_num = bin_num
+                    best_rate = avg_rate
+                    best_empty_positions = tmp_empty_position
+                    max_empty_ares = empty_ares
+                    min_cut_linear = tmp_cut_linear
+                    best_packer = index_packer
+
             index_packer += 1
 
         # 板木尺寸信息
@@ -553,7 +570,7 @@ class PackerSolution(object):
         # print(u'算法%d >>> 平均利用率:%s, 使用%d块, 余料总面积:%d' % (
         #    best_packer, str(best_rate), len(best_solution), max_empty_ares))
 
-        return best_solution, best_empty_positions, best_rate, best_packer, bins_list
+        return best_solution, best_empty_positions, best_rate, best_packer, bins_list, min_cut_linear
 
     def find_solution(self, algo_list=None):
         if self.is_valid():
@@ -570,7 +587,7 @@ class PackerSolution(object):
                 if 'bins_num' in self._data['data'][bin_key]:
                     bins_num = self.get_bin_data(bin_key, key='bins_num')
 
-                best_solution, empty_positions, best_rate, best_packer, bins_list = self.find_best_solution(
+                best_solution, empty_positions, best_rate, best_packer, bins_list, min_cut_linear = self.find_best_solution(
                     all_shapes, bin_key, packer_id_list=algo_list, bins_num=bins_num)
 
                 result_list.append({
@@ -580,6 +597,7 @@ class PackerSolution(object):
                     'rate': best_rate,
                     'algo_id': best_packer,
                     'bins_list': bins_list,
+                    'cut_linear': min_cut_linear
                 })
             return result_list
 

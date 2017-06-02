@@ -3,6 +3,7 @@ import json
 import os
 import time
 import copy
+import re
 from collections import defaultdict
 
 from django_api import settings
@@ -357,12 +358,19 @@ def project_detail(request, p_id):
         content['comment_text'] = project.comment
 
     for abin in bin_list:
+        res = re.findall(u'切割线.*', abin.sheet_name)
+        sheet_name = abin.sheet_name
+        cut_linear = ''
+        if len(res):
+            sheet_name = sheet_name[:-1*len(res[0])]
+            cut_linear = res[0].split(':')[1]
         content['bin_list'].append({
             'bin_id': abin.id,
-            'sheet_name': abin.sheet_name,
+            'sheet_name': sheet_name,
             'num_sheet': abin.num_sheet,
             'avg_rate': abin.avg_rate,
             'pic_url': abin.pic_url,
+            'cut_linear': cut_linear
         })
     return render(request, 'project_detail.html', content)
 

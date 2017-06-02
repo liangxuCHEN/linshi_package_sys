@@ -6,10 +6,12 @@ from django import forms
 
 class AlgoForm(forms.Form):
     algo_style = list()
-    for i in range(0, 60):
+    for i in range(0, 120):
         algo_style.append((str(i), u'算法%d' % i))
     algo_style = tuple(algo_style)
     algo_list = forms.MultipleChoiceField(
         label=u'算法类型',
         choices=algo_style,
         widget=forms.CheckboxSelectMultiple())
+
+

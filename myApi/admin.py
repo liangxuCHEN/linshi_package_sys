@@ -7,7 +7,7 @@ class UseRateAdmin(admin.ModelAdmin):
 
 
 class ProductRateDetailAdmin(admin.ModelAdmin):
-    list_display = ('sheet_name', 'avg_rate')
+    list_display = ('sheet_name', 'avg_rate', 'algorithm')
 
 
 class ProjectAdmin(admin.ModelAdmin):
