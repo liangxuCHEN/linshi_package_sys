@@ -18,6 +18,7 @@ from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_func
 from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work
 
 from myApi.models import Userate, ProductRateDetail, Project
+from myApi.data_mining_lib.comment_data import main_process as calc_comment
 
 
 def home_page(request):
@@ -373,6 +374,15 @@ def project_detail(request, p_id):
             'cut_linear': cut_linear
         })
     return render(request, 'project_detail.html', content)
+
+
+@csrf_exempt
+def statical_comment(request):
+    if request.method == 'POST':
+        result = calc_comment(request.POST.get('paramets'))
+        return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
+    else:
+        return render(request, 'calc_comment.html')
 
 
 class ProjectIndexView(generic.ListView):

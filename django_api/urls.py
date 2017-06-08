@@ -15,6 +15,7 @@ urlpatterns = [
     url(r'^project_detail/(?P<p_id>\d+)/$', views.project_detail, name='project_detail'),
     url(r'^best_piece/$', views.best_piece, name='best_piece'),
     url(r'^save_work/$', views.save_work, name='save_work'),
+    url(r'^calc_comment/$', views.statical_comment, name='statical_comment'),
     url(r'^admin/', include(admin.site.urls)),
 ]
 urlpatterns += staticfiles_urlpatterns()
