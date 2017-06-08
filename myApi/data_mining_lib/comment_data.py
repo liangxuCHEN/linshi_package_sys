@@ -4,6 +4,9 @@ import pandas as pd
 import pymssql
 from myApi import my_settings
 from collections import defaultdict
+import sys
+reload(sys)
+sys.setdefaultencoding("utf-8")
 
 
 def init_sql():
@@ -21,6 +24,15 @@ def load_data(id_list, begin_date, end_date):
     conn = init_sql()
     sql_text = "SELECT * FROM T_DCR_Comment (nolock) " \
                "WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s';" % (str(id_list), begin_date, end_date)
+    return pd.io.sql.read_sql(sql_text, con=conn)
+
+
+def load_data_with_word(id_list, begin_date, end_date, word):
+    # 整理数据
+    conn = init_sql()
+    sql_text = """SELECT * FROM T_DCR_Comment (nolock) WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and RateContent like '%s';""" %\
+               (str(id_list), begin_date, end_date, word)
+    print sql_text
     return pd.io.sql.read_sql(sql_text, con=conn)
 
 
@@ -42,10 +54,17 @@ def main_process(data):
         data = json.loads(data)
         for t_id in range(0, len(data['treasure_ids'])):
             data['treasure_ids'][t_id] = str(data['treasure_ids'][t_id])
+        if len(data['treasure_ids']) == 1:
+            data['treasure_ids'].append('')
         treasure_ids = tuple(data['treasure_ids'])
         begin_date = data['begin_date']
         end_date = data['end_date']
-        df = load_data(treasure_ids, begin_date, end_date)
+        if 'word' in data.keys():
+            key_word = data['word']
+            key_word = '%"' + key_word + '"%'
+            df = load_data_with_word(treasure_ids, begin_date, end_date, key_word)
+        else:
+            df = load_data(treasure_ids, begin_date, end_date)
     except Exception as e:
         return {'IsErr': True, 'ErrDesc': u'数据格式错误', 'data': ''}
 
