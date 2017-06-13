@@ -37,7 +37,7 @@ def split_comment(row):
 
 
 def output_file(df_input):
-    file_name = 'comment_input_model_%s' % (str(time.time()).split('.')[0])
+    file_name = 'comment_input_%s' % (str(time.time()).split('.')[0])
     path = os.path.join(BASE_DIR, 'learn', file_name)
     with open(path, 'w') as f:
         for d_index in range(0, len(df_input)):
@@ -61,7 +61,7 @@ def learn_model(file_name, test_file_name=None):
     try:
         # 生成学习文档
         learn_file_name = output_file(df)
-        tmp_learn_name = os.path.join(BASE_DIR, 'learn', 'sample_' + learn_file_name)
+        tmp_learn_name = os.path.join(BASE_DIR, 'learn', 'model_' + learn_file_name)
         grocery = Grocery(tmp_learn_name)
         path = os.path.join(BASE_DIR, 'learn', learn_file_name)
         grocery.train(path)
@@ -73,16 +73,16 @@ def learn_model(file_name, test_file_name=None):
         res = test_sample(tmp_learn_name, test_file_name)
     else:
         res = test_sample(tmp_learn_name, TEST_FILE)
-    # res = '0'
 
-    return {'IsErr': False, 'ErrDesc': u'成功生产新的模型，测试验证的正确率为%s' % res}
+    return {'IsErr': False, 'ErrDesc': u'成功生产新的模型，测试验证的正确率为%s, 模型保存为:%s' % (
+        res, os.path.split(tmp_learn_name)[1])}
 
 
 def test_sample(path, test_path):
     new_grocery = Grocery(path)
     new_grocery.load()
     test_path = os.path.join(BASE_DIR, 'learn', test_path)
-    res = new_grocery.test(test_path)
+    res = new_grocery.test(test_path.encode('utf-8'))
     return str(res)
 
 if __name__ == '__main__':
