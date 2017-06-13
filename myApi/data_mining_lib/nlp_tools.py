@@ -61,7 +61,8 @@ def learn_model(file_name, test_file_name=None):
     try:
         # 生成学习文档
         learn_file_name = output_file(df)
-        grocery = Grocery('sample_' + learn_file_name)
+        learn_file_name = os.path.join(BASE_DIR, 'learn', 'sample_' + learn_file_name)
+        grocery = Grocery(path)
         path = os.path.join(BASE_DIR, 'learn', learn_file_name)
         grocery.train(path)
         grocery.save()
@@ -69,9 +70,9 @@ def learn_model(file_name, test_file_name=None):
         return {'IsErr': True, 'ErrDesc': u'学习不成功，没有生产新的模型，请再次尝试。'}
 
     if test_file_name:
-        res = test_sample('sample_' + learn_file_name, test_file_name)
+        res = test_sample(learn_file_name, test_file_name)
     else:
-        res = test_sample('sample_' + learn_file_name, TEST_FILE)
+        res = test_sample(learn_file_name, TEST_FILE)
     # res = '0'
 
     return {'IsErr': False, 'ErrDesc': u'成功生产新的模型，测试验证的正确率为%s' % res}
