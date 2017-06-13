@@ -1,6 +1,7 @@
 # encoding=utf8
+import os
 from django import forms
-
+from django_api import settings
 # ALGO_STYLE = (("1", u"算法1"), ("2", u"算法2"), ("3", u"算法3"))
 
 
@@ -13,5 +14,33 @@ class AlgoForm(forms.Form):
         label=u'算法类型',
         choices=algo_style,
         widget=forms.CheckboxSelectMultiple())
+
+
+class LearnCommentForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super(LearnCommentForm, self).__init__(*args, **kwargs)
+        path = os.path.join(settings.BASE_DIR, 'static', 'learn')
+        path_dir = os.listdir(path)
+        learn_file_list = list()
+        test_file_list = list()
+        print len(path_dir)
+        for file_name in path_dir:
+            if 'learn' in file_name:
+                learn_file_list.append((file_name, file_name))
+            elif 'test' in file_name:
+                test_file_list.append((file_name, file_name))
+        learn_file_list = tuple(learn_file_list)
+        test_file_list = tuple(test_file_list)
+        self.fields['learn_list'].choices = learn_file_list
+        self.fields['test_list'].choices = test_file_list
+
+    learn_list = forms.ChoiceField(
+        label=u'学习文档',
+        widget=forms.RadioSelect,
+    )
+    test_list = forms.ChoiceField(
+        label=u'测试文档',
+        widget=forms.RadioSelect,
+    )
 
 

@@ -8,17 +8,19 @@ from collections import defaultdict
 
 from django_api import settings
 from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views import generic
 
-from myApi.forms import AlgoForm
+from myApi.forms import AlgoForm, LearnCommentForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
 from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function, find_best_piece
 from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work
 
 from myApi.models import Userate, ProductRateDetail, Project
 from myApi.data_mining_lib.comment_data import main_process as calc_comment
+from myApi.data_mining_lib.nlp_tools import learn_model
+from myApi.tools import handle_uploaded_file
 
 
 def home_page(request):
@@ -176,6 +178,7 @@ def product_use_rate_demo(request):
         form = AlgoForm()
         return render(request, 'product_use_rate_demo.html', {'form': form})
 
+
 @csrf_exempt
 def best_piece(request):
     if request.method == 'POST':
@@ -183,6 +186,7 @@ def best_piece(request):
         return HttpResponse(json.dumps(result), content_type="application/json")
     else:
         return render(request, 'best_piece.html')
+
 
 @csrf_exempt
 def save_work(request):
@@ -383,6 +387,30 @@ def statical_comment(request):
         return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
     else:
         return render(request, 'calc_comment.html')
+
+
+def learn_classify_comment(request):
+    if request.method == 'POST':
+        learn_file_name = request.POST.get('learn_list')
+        test_file_name = request.POST.get('test_list')
+        result = learn_model(learn_file_name, test_file_name=test_file_name)
+        return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
+    else:
+        form = LearnCommentForm()
+        return render(request, 'nlp_learn.html', {'form': form})
+
+
+def upload_file(request):
+    if request.method == 'POST':
+        l_file = request.FILES.get('learn_file')
+        if l_file:
+            path = os.path.join(settings.BASE_DIR, 'static', 'learn', 'learn_'+str(l_file))
+            handle_uploaded_file(l_file, path)
+        t_file = request.FILES.get('test_file')
+        if t_file:
+            path = os.path.join(settings.BASE_DIR, 'static', 'learn', 'test_' + str(t_file))
+            handle_uploaded_file(t_file, path)
+        return HttpResponseRedirect('/nlp_learn')
 
 
 class ProjectIndexView(generic.ListView):

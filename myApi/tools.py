@@ -33,3 +33,9 @@ def send_mail(mail_to, subject, msg_txt):
     server.quit()
     return True
 
+
+def handle_uploaded_file(file, path):
+    with open(path, 'wb+') as destination:
+        for chunk in file.chunks():
+            destination.write(chunk)
+

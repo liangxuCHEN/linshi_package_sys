@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}产品使用率计算{% endblock %}
+{% block content %}
+<div class="jumbotron">
+    <form action="{% url 'upload_file'%}" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label>上传学习文档(文档推荐用英文命名, 扩展名：xls) ：</label><br>
+        <input type="file" name="learn_file" /><br/><br/>
+        <label>上传测试文档(文档推荐用用英文命名, 扩展名：txt 或不用) ：</label><br>
+        <input type="file" name="test_file"/><br/><br/>
+        <input type="submit" value="上传文档" />
+    </form>
+    <hr>
+
+    <form action="{% url 'nlp_learn'%}" method="POST">
+        {% csrf_token %}
+        {{form.as_p}}
+        <input type="submit" value="提交" />
+    </form>
+</div>
+{% endblock %}
