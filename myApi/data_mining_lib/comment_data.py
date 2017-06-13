@@ -70,36 +70,30 @@ def main_process(data):
 
     if len(df) == 0:
         return {'IsErr': True, 'ErrDesc': u'没有找到相应的评论', 'data': ''}
-    result = {
-        'positive': {
-            'adj': defaultdict(lambda: 0),
-            'verb': defaultdict(lambda: 0),
-            'noun': defaultdict(lambda: 0),
-        },
-        'neutral': {
-            'adj': defaultdict(lambda: 0),
-            'verb': defaultdict(lambda: 0),
-            'noun': defaultdict(lambda: 0),
-        },
-        'negative': {
-            'adj': defaultdict(lambda: 0),
-            'verb': defaultdict(lambda: 0),
-            'noun': defaultdict(lambda: 0),
-        }
-    }
+
+    result = {}
     for record_data in range(0, len(df)):
         tmp_data = json.loads(df.iloc[record_data]['RateContent'])
         # 记录结果
-        if df.iloc[record_data]['Level'] > 0.2:
-            result['positive'].update(static_word(tmp_data, result['positive']))
-        elif df.iloc[record_data]['Level'] > 0.1:
-            result['neutral'].update(static_word(tmp_data, result['neutral']))
+        # TODO:多标签的分类
+        if df.iloc[record_data]['Tag'] in result.keys():
+            result[df.iloc[record_data]['Tag']].update(static_word(tmp_data, result[df.iloc[record_data]['Tag']]))
+            result[df.iloc[record_data]['Tag']]['motivation'].append(df.iloc[record_data]['Level'])
         else:
-            result['negative'].update(static_word(tmp_data, result['negative']))
+            result[df.iloc[record_data]['Tag']] = {
+                'adj': defaultdict(lambda: 0),
+                'verb': defaultdict(lambda: 0),
+                'noun': defaultdict(lambda: 0),
+                'motivation': list(),
+            }
+            result[df.iloc[record_data]['Tag']].update(static_word(tmp_data, result[df.iloc[record_data]['Tag']]))
+            result[df.iloc[record_data]['Tag']]['motivation'].append(df.iloc[record_data]['Level'])
+
     # 排序
     for level in result.keys():
         for character in result[level].keys():
-            result[level][character] = sorted(result[level][character].items(), key=lambda d: d[1], reverse=True)
+            if character != 'motivation':
+                result[level][character] = sorted(result[level][character].items(), key=lambda d: d[1], reverse=True)
 
     return {'IsErr': False, 'ErrDesc': u'成功操作', 'data': result}
 
