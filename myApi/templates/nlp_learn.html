@@ -6,15 +6,21 @@
         {% csrf_token %}
         <label>上传学习文档(文档推荐用英文命名, 扩展名：xls) ：</label><br>
         <input type="file" name="learn_file" /><br/><br/>
-        <label>上传测试文档(文档推荐用用英文命名, 扩展名：txt 或不用) ：</label><br>
-        <input type="file" name="test_file"/><br/><br/>
         <input type="submit" value="上传文档" />
     </form>
     <hr>
-
     <form action="{% url 'nlp_learn'%}" method="POST">
         {% csrf_token %}
-        {{form.as_p}}
+        {{form_learn.as_p}}
+        <input type="submit" value="提交" />
+    </form>
+    <hr>
+
+    <form action="{% url 'predict_sentence'%}" method="POST">
+        {% csrf_token %}
+        {{form_model.as_p}}
+        <p>输入需要判断的句子，例子：沙发宝贝收到 ，包装很严实，质量很好，和图片一致;很愉快的一次购物，从下单到发货，到收到货物，到安装，到售后，客服全程都比较耐心的服务</p>
+        <textarea rows="4" cols="50" name="sentences"></textarea><br>
         <input type="submit" value="提交" />
     </form>
 </div>

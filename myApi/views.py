@@ -12,14 +12,14 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views import generic
 
-from myApi.forms import AlgoForm, LearnCommentForm
+from myApi.forms import AlgoForm, LearnCommentForm, PredictForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
 from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function, find_best_piece
 from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work
 
 from myApi.models import Userate, ProductRateDetail, Project
 from myApi.data_mining_lib.comment_data import main_process as calc_comment
-from myApi.data_mining_lib.nlp_tools import learn_model
+from myApi.data_mining_lib.nlp_tools import learn_model, predict_test
 from myApi.tools import handle_uploaded_file
 
 
@@ -392,12 +392,14 @@ def statical_comment(request):
 def learn_classify_comment(request):
     if request.method == 'POST':
         learn_file_name = request.POST.get('learn_list')
-        test_file_name = request.POST.get('test_list')
-        result = learn_model(learn_file_name, test_file_name=test_file_name)
+        result = learn_model(learn_file_name)
         return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
     else:
-        form = LearnCommentForm()
-        return render(request, 'nlp_learn.html', {'form': form})
+        content = {
+            'form_learn': LearnCommentForm(),
+            'form_model': PredictForm(),
+        }
+        return render(request, 'nlp_learn.html', content)
 
 
 def upload_file(request):
@@ -406,11 +408,18 @@ def upload_file(request):
         if l_file:
             path = os.path.join(settings.BASE_DIR, 'static', 'learn', 'learn_'+str(l_file))
             handle_uploaded_file(l_file, path)
-        t_file = request.FILES.get('test_file')
-        if t_file:
-            path = os.path.join(settings.BASE_DIR, 'static', 'learn', 'test_' + str(t_file))
-            handle_uploaded_file(t_file, path)
-        return HttpResponseRedirect('/nlp_learn')
+
+    return HttpResponseRedirect('/nlp_learn')
+
+
+def predict_sentence(request):
+    if request.method == 'POST':
+        model_file_name = request.POST.get('model_list')
+        if model_file_name:
+            result = predict_test(model_file_name, request.POST.get('sentences'))
+            return render(request, 'nlp_learn.html', result)
+
+    return HttpResponseRedirect('/nlp_learn')
 
 
 class ProjectIndexView(generic.ListView):

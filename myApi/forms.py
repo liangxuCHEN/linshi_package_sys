@@ -22,25 +22,36 @@ class LearnCommentForm(forms.Form):
         path = os.path.join(settings.BASE_DIR, 'static', 'learn')
         path_dir = os.listdir(path)
         learn_file_list = list()
-        test_file_list = list()
-        print len(path_dir)
+
         for file_name in path_dir:
             if 'learn' in file_name:
                 learn_file_list.append((file_name, file_name))
-            elif 'test' in file_name:
-                test_file_list.append((file_name, file_name))
+
         learn_file_list = tuple(learn_file_list)
-        test_file_list = tuple(test_file_list)
         self.fields['learn_list'].choices = learn_file_list
-        self.fields['test_list'].choices = test_file_list
 
     learn_list = forms.ChoiceField(
         label=u'学习文档',
         widget=forms.RadioSelect,
     )
-    test_list = forms.ChoiceField(
-        label=u'测试文档',
+
+
+class PredictForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super(PredictForm, self).__init__(*args, **kwargs)
+        path = os.path.join(settings.BASE_DIR, 'static', 'learn')
+        path_dir = os.listdir(path)
+        model_file_list = list()
+
+        for file_name in path_dir:
+            if 'model' in file_name:
+                model_file_list.append((file_name, file_name))
+
+        model_file_list = tuple(model_file_list)
+        self.fields['model_list'].choices = model_file_list
+
+    model_list = forms.ChoiceField(
+        label=u'选择模型',
         widget=forms.RadioSelect,
     )
-
 
