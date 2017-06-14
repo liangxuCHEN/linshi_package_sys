@@ -23,5 +23,23 @@
         <textarea rows="4" cols="50" name="sentences"></textarea><br>
         <input type="submit" value="提交" />
     </form>
+    <hr>
+    {%if IsErr%}
+    <p>错误信息：{{ErrDesc}}</p>
+    {% endif %}
+    {%if data %}
+        <table border="1" style="border-spacing: 1px;border-collapse: collapse;">
+            <thead><tr>
+                <td>序号</td>
+                <td>标签</td>
+                <td>句子</td>
+            </tr></thead>
+            <tbody>
+            {% for d in data %}
+            <tr><td>{{forloop.counter}}</td><td>d.tag</td><td>sentence</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
 </div>
 {% endblock %}

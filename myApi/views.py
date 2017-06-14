@@ -417,6 +417,8 @@ def predict_sentence(request):
         model_file_name = request.POST.get('model_list')
         if model_file_name:
             result = predict_test(model_file_name, request.POST.get('sentences'))
+            result['form_learn'] = LearnCommentForm()
+            result['form_model'] = PredictForm()
             return render(request, 'nlp_learn.html', result)
 
     return HttpResponseRedirect('/nlp_learn')
