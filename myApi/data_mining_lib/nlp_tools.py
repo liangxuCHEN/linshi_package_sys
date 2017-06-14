@@ -36,16 +36,17 @@ def split_comment(row):
     return row
 
 
-def output_file(df_input, num_learn):
+def output_file(file_name_pix, df_input, num_learn):
     time_mark = str(time.time()).split('.')[0]
-    learn_file_name = 'input_comment_%s.txt' % time_mark
+    file_name_pix = file_name_pix[5:].split('.')[0]
+    learn_file_name = 'input%s_%s.txt' % (file_name_pix, time_mark)
     path = os.path.join(BASE_DIR, 'learn', learn_file_name)
     with open(path, 'w') as f:
         for d_index in range(0, num_learn-1):
             text = '%s\t%s\n' % (df_input.iloc[d_index]['Tag'], df_input.iloc[d_index]['word'])
             f.write(text.encode('utf-8'))
 
-    test_file_name = 'test_comment_%s.txt' % time_mark
+    test_file_name = 'test%s_%s.txt' % (file_name_pix, time_mark)
     path = os.path.join(BASE_DIR, 'learn', test_file_name)
     with open(path, 'w') as f:
         for d_index in range(num_learn, len(df_input)):
@@ -70,11 +71,11 @@ def learn_model(file_name):
         # 拆分学习组和测试组 3 ：2
         len_learn = len(df) / 5 * 3
         # 生成学习文档和测试文档
-        learn_file_name, test_file_name = output_file(df, len_learn)
-        tmp_learn_name = os.path.join(BASE_DIR, 'learn', 'model_' + learn_file_name)
-        grocery = Grocery(tmp_learn_name)
+        learn_file_name, test_file_name = output_file(file_name, df, len_learn)
+        tmp_learn_name = os.path.join(BASE_DIR, 'learn', 'model_' + learn_file_name.split('.')[0])
+        grocery = Grocery(tmp_learn_name.encode('utf-8'))
         path = os.path.join(BASE_DIR, 'learn', learn_file_name)
-        grocery.train(path)
+        grocery.train(path.encode('utf-8'))
         grocery.save()
     except Exception as e:
         return {'IsErr': True, 'ErrDesc': u'学习不成功，没有生产新的模型，请再次尝试。'}
@@ -87,7 +88,7 @@ def learn_model(file_name):
 
 
 def test_sample(path, test_path):
-    new_grocery = Grocery(path)
+    new_grocery = Grocery(path.encode('utf-8'))
     new_grocery.load()
     test_path = os.path.join(BASE_DIR, 'learn', test_path)
     res = new_grocery.test(test_path.encode('utf-8'))
@@ -98,7 +99,7 @@ def predict_test(model_path, data):
     # 加载模型
     try:
         model_path = os.path.join(BASE_DIR, 'learn', model_path)
-        new_grocery = Grocery(model_path)
+        new_grocery = Grocery(model_path.encode('utf-8'))
         new_grocery.load()
     except Exception as e:
         return {'IsErr': True, 'ErrDesc': u'学习模型加载不成功，请检查路径'}

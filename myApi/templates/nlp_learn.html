@@ -36,7 +36,7 @@
             </tr></thead>
             <tbody>
             {% for d in data %}
-            <tr><td>{{forloop.counter}}</td><td>d.tag</td><td>sentence</td></tr>
+            <tr><td>{{forloop.counter}}</td><td>{{d.tag}}</td><td>{{d.sentence}}</td></tr>
             {% endfor %}
             </tbody>
         </table>
