@@ -384,7 +384,11 @@ def project_detail(request, p_id):
 def statical_comment(request):
     if request.method == 'POST':
         result = calc_comment(request.POST.get('paramets'))
-        return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
+        response = HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+        response["Access-Control-Max-Age"] = "1000"
+        response["Access-Control-Allow-Headers"] = "*"
     else:
         return render(request, 'calc_comment.html')
 
