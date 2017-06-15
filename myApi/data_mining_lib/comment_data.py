@@ -75,6 +75,17 @@ def main_process(data):
             else:
                 sql_word = '(%s)' % ' or '.join(tmp_list)
 
+        # 包含Tag标签查询
+        if data.has_key('tag'):
+            tmp_list = list()
+            for tag in data['tag']:
+                tmp_list.append("CHARINDEX('%s', Tag)>0" % tag)
+
+            if sql_word:
+                sql_word = '%s and (%s)' % (sql_word, ' or '.join(tmp_list))
+            else:
+                sql_word = '(%s)' % ' or '.join(tmp_list)
+
         if sql_word:
             df = load_data_with_word(treasure_ids, begin_date, end_date, sql_word)
         else:
