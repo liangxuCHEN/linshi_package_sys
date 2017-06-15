@@ -30,9 +30,8 @@ def load_data(id_list, begin_date, end_date):
 def load_data_with_word(id_list, begin_date, end_date, word):
     # 整理数据
     conn = init_sql()
-    sql_text = """SELECT * FROM T_DCR_Comment (nolock) WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and RateContent like '%s';""" %\
+    sql_text = """SELECT * FROM T_DCR_Comment (nolock) WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and %s;""" %\
                (str(id_list), begin_date, end_date, word)
-    print sql_text
     return pd.io.sql.read_sql(sql_text, con=conn)
 
 
@@ -59,10 +58,25 @@ def main_process(data):
         treasure_ids = tuple(data['treasure_ids'])
         begin_date = data['begin_date']
         end_date = data['end_date']
-        if 'word' in data.keys():
-            key_word = data['word']
-            key_word = '%"' + key_word + '"%'
-            df = load_data_with_word(treasure_ids, begin_date, end_date, key_word)
+        # 整理包含字符查询
+        sql_word = None
+        if data.has_key('and_word'):
+            tmp_list = list()
+            for word in data['and_word']:
+                tmp_list.append("CHARINDEX('%s', RateContent)>0" % word)
+            sql_word = ' and '.join(tmp_list)
+
+        if data.has_key('or_word'):
+            tmp_list = list()
+            for word in data['or_word']:
+                tmp_list.append("CHARINDEX('%s', RateContent)>0" % word)
+            if sql_word:
+                sql_word = '(%s and ( %s))' % (sql_word, ' or '.join(tmp_list))
+            else:
+                sql_word = '(%s)' % ' or '.join(tmp_list)
+
+        if sql_word:
+            df = load_data_with_word(treasure_ids, begin_date, end_date, sql_word)
         else:
             df = load_data(treasure_ids, begin_date, end_date)
     except Exception as e:
