@@ -35,6 +35,17 @@ def load_data_with_word(id_list, begin_date, end_date, word):
     return pd.io.sql.read_sql(sql_text, con=conn)
 
 
+def get_sentence(data):
+    conn = init_sql()
+    data['word'] = "CHARINDEX('%s', Sentence)>0 and CHARINDEX('%s', Tag)>0" % (data['word'], data['tag'])
+
+    treasure_ids = (str(data['t_ids[]']), '')
+    sql_text = """SELECT TreasureID, Sentence FROM T_DCR_Comment (nolock) WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and %s;""" % \
+               (str(treasure_ids), data['begin_date'], data['end_date'], data['word'])
+    df = pd.io.sql.read_sql(sql_text, con=conn)
+    return df.to_json(orient='records')
+
+
 def static_word(data, result):
     if 'a' in data.keys():
         for word in data['a']:
@@ -122,3 +133,5 @@ def main_process(data):
 
     return {'IsErr': False, 'ErrDesc': u'成功操作', 'data': result}
 
+if __name__ == '__main__':
+    get_sentence({"word": u'安装', "treasure_ids": ['37335419863'], "tag": u'差评', 'begin_date': '2017-01-18', 'end_date': '2017-06-01'})

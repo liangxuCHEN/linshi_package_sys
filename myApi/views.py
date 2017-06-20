@@ -18,7 +18,7 @@ from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_func
 from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work
 
 from myApi.models import Userate, ProductRateDetail, Project
-from myApi.data_mining_lib.comment_data import main_process as calc_comment
+from myApi.data_mining_lib.comment_data import main_process as calc_comment, get_sentence
 from myApi.data_mining_lib.nlp_tools import learn_model, predict_test
 from myApi.tools import handle_uploaded_file
 
@@ -427,6 +427,18 @@ def predict_sentence(request):
             return render(request, 'nlp_learn.html', result)
 
     return HttpResponseRedirect('/nlp_learn')
+
+
+@csrf_exempt
+def get_comment_sentence(request):
+    if request.method == 'POST':
+        result = get_sentence(request.POST.copy())
+        response = HttpResponse(result, content_type="application/json")
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+        response["Access-Control-Max-Age"] = "1000"
+        response["Access-Control-Allow-Headers"] = "*"
+        return response
 
 
 class ProjectIndexView(generic.ListView):

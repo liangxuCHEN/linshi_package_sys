@@ -19,6 +19,7 @@ urlpatterns = [
     url(r'^nlp_learn/$', views.learn_classify_comment, name='nlp_learn'),
     url(r'^upload_file/$', views.upload_file, name='upload_file'),
     url(r'^predict_sentence/$', views.predict_sentence, name='predict_sentence'),
+    url(r'^get_comment_sentence$', views.get_comment_sentence, name='get_comment_sentence'),
     url(r'^admin/', include(admin.site.urls)),
 ]
 urlpatterns += staticfiles_urlpatterns()
