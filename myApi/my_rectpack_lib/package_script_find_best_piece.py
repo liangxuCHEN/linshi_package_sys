@@ -6,6 +6,7 @@ from datetime import datetime as dt
 import sqlalchemy
 from sqlalchemy.pool import NullPool
 import json
+import pymssql
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, bindparam, and_
 import logging
@@ -16,6 +17,56 @@ from package import PackerSolution
 from myApi import my_settings
 from django_api import settings
 from myApi.tools import send_mail
+
+
+class Mssql:
+    def __init__(self):
+        self.host = my_settings.BOM_HOST
+        self.user = my_settings.BOM_HOST_USER
+        self.pwd = my_settings.BOM_HOST_PASSWORD
+        self.db = my_settings.BOM_DB
+
+    def __get_connect(self):
+        if not self.db:
+            raise (NameError, "do not have db information")
+        self.conn = pymssql.connect(
+            host=self.host,
+            user=self.user,
+            password=self.pwd,
+            database=self.db,
+            charset="utf8"
+        )
+        cur = self.conn.cursor()
+        if not cur:
+            raise (NameError, "Have some Error")
+        else:
+            return cur
+
+    def exec_query(self, sql):
+        cur = self.__get_connect()
+        cur.execute(sql)
+        res_list = cur.fetchall()
+
+        # the db object must be closed
+        self.conn.close()
+        return res_list
+
+    def exec_non_query(self, sql):
+        cur = self.__get_connect()
+        cur.execute(sql)
+        self.conn.commit()
+        self.conn.close()
+
+    def exec_many_query(self, sql, param):
+        cur = self.__get_connect()
+        try:
+            cur.executemany(sql, param)
+            self.conn.commit()
+        except Exception as e:
+            print e
+            self.conn.rollback()
+
+        self.conn.close()
 
 
 def log_init(file_name):
@@ -85,12 +136,16 @@ def get_data():
     for input_data in res:
         content.append({
             'row_id': input_data.id,
-            'status': my_settings.RUNNING_STATUS
+            'status': my_settings.RUNNING_STATUS,
+            'SkuCode': input_data.SkuCode,
+            'Created': dt.today()
         })
     connection.execute(sql_text, content)
     # 断开连接
     session.close()
     connection.close()
+    # 更新运行中状态
+    update_running_work(content)
     return res
 
 
@@ -237,24 +292,24 @@ def generate_work(input_data):
                 pass
 
             result.append({
-                'BOMVersion': data['BOMVersion'],
+                'SkuCode': data['SkuCode'],
                 'Satuts': res.Status,
                 'Result': tmp_result
             })
         else:
             # 新任务
             result.append({
-                'BOMVersion': data['BOMVersion'],
+                'SkuCode': data['SkuCode'],
                 'Satuts': 0,
                 'Result': ''
             })
             # 版本号是否存在
             is_exist = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(
-                table_schema.columns.BOMVersion == data['BOMVersion']).first()
+                table_schema.columns.SkuCode == data['SkuCode']).first()
             # 存在就更新数据，不存在就插入新数据
             if is_exist:
                 update_list.append({
-                    'bom': data['BOMVersion'],
+                    'SkuCode': data['SkuCode'],
                     'status': 0,
                     'result': u'',
                     'shapeData': shape_data,
@@ -263,7 +318,7 @@ def generate_work(input_data):
                 })
             else:
                 insert_list.append({
-                    'BOMVersion': data['BOMVersion'],
+                    'SkuCode': data['SkuCode'],
                     'Status': 0,
                     'Result': u'',
                     'ShapeData': shape_data,
@@ -275,7 +330,7 @@ def generate_work(input_data):
     log.info('saving the new works into DB ....')
     if len(update_list) > 0:
         sql_text = table_schema.update().where(
-            table_schema.columns.BOMVersion == bindparam('bom')).values(
+            table_schema.columns.SkuCode == bindparam('SkuCode')).values(
             Status=bindparam('status'),
             Result=bindparam('result'),
             ShapeData=bindparam('shapeData'),
@@ -284,6 +339,7 @@ def generate_work(input_data):
         )
         try:
             connection.execute(sql_text, update_list)
+            session.commit()
         except Exception as e:
             # 如果出错发送邮件通知
             log.error('can not update the data in the db and send the mail to admin ....')
@@ -304,7 +360,66 @@ def generate_work(input_data):
     session.close()
     connection.close()
     log.info('-------------finish and return the result----------------')
+    # 更新另外的数据库
+    if len(insert_list) > 0:
+        insert_work(insert_list)
+    if len(update_list) > 0:
+        update_new_work(update_list)
     return {'ErrDesc': u'操作成功', 'IsErr': False, 'data': result}
+
+
+def insert_work(data):
+    insert_data = list()
+    for d in data:
+        insert_data.append((
+            d['SkuCode'], '', d['ShapeData'], d['BinData'],
+            u'新任务', d['Created'].strftime('%Y-%m-%d %H:%M:%S'),
+            d['Created'].strftime('%Y-%m-%d %H:%M:%S')
+        ))
+    conn = Mssql()
+    insert_sql = "insert into T_BOM_PlateUtilState values (%s,%s,%s,%s,%s,%s,%s)"
+    conn.exec_many_query(insert_sql, insert_data)
+
+
+def update_new_work(data):
+    conn = Mssql()
+    for d in data:
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s' where SkuCode='%s'" % (
+            u'新任务', d['Created'].strftime('%Y-%m-%d %H:%M:%S'), d['SkuCode'])
+        print update_sql
+        conn.exec_non_query(update_sql)
+
+
+def update_running_work(data):
+    conn = Mssql()
+    for d in data:
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s' where SkuCode='%s'" % (
+            u'运行中', d['Created'].strftime('%Y-%m-%d %H:%M:%S'), d['SkuCode'])
+        print update_sql
+        conn.exec_non_query(update_sql.encode('utf8'))
+
+
+def update_ending_work(data):
+    conn = Mssql()
+
+    if data['status'] == u'计算出错':
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s'where SkuCode='%s'" % (
+            data['status'],  data['Created'].strftime('%Y-%m-%d %H:%M:%S'), data['SkuCode'])
+    else:
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',Url='%s',UpdateDate='%s'where SkuCode='%s'" % (
+            data['status'], data['url'], data['Created'].strftime('%Y-%m-%d %H:%M:%S'), data['SkuCode'])
+    conn.exec_non_query(update_sql.encode('utf8'))
+
+
+def update_result(data):
+    update_ending_work(data)
+    conn = Mssql()
+    # 先看是否存在, 存在就删除原来数据
+    sql_text = "delete T_BOM_PlateUtilUsedRate where ProductSkuCode='%s'" % data['SkuCode']
+    conn.exec_non_query(sql_text)
+    sql_text = "insert into T_BOM_PlateUtilUsedRate values (%s, %s, %s)"
+    conn.exec_many_query(sql_text, data['rates'])
+
 
 if __name__ == '__main__':
     global log
@@ -314,14 +429,21 @@ if __name__ == '__main__':
     log.info('connect to the DB and get the data, there are %d works today' % len(rows))
     # 结果保存,批量更新
     content = list()
+
     for input_data in rows:
+        # 更新另外的数据库,每得到结果更新一次
+        content_2 = {}
         error, result = find_best_piece(input_data.ShapeData, input_data.BinData)
+        content_2['SkuCode'] = input_data.SkuCode
+        content_2['Created'] = end_day
         if error:
             content.append({
                 'row_id': input_data.id,
                 'status': my_settings.ERROR_STATUS,
                 'result': result['info'],
             })
+            content_2['status'] = u'计算出错'
+            update_result(content_2)
             log.error('work id=%d has error in input data ' % input_data.id)
             # 如果出错发送邮件通知
             body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
@@ -331,12 +453,15 @@ if __name__ == '__main__':
             # 访问API
             http_response = http_post(result['piece'], input_data.ShapeData, input_data.BinData)
             result['url'] = my_settings.BASE_URL + http_response[1:-1] if http_response else 'no url'
-
+            content_2['status'] = u'运算结束'
+            content_2['url'] = result['url']
+            content_2['rates'] = list()
             rate_list = list()
             for bin_info in json.loads(input_data.BinData):
                 if bin_info['SkuCode'] in result['rates'].keys():
                     bin_info['rate'] = result['rates'][bin_info['SkuCode']]
                     rate_list.append(bin_info)
+                    content_2['rates'].append((content_2['SkuCode'],  bin_info['SkuCode'], bin_info['rate']))
             result['rates'.encode('utf-8')] = rate_list
 
             content.append({
@@ -344,6 +469,9 @@ if __name__ == '__main__':
                 'status': my_settings.FINISH_STATUS,
                 'result': json.dumps(result, ensure_ascii=False),
             })
+            # 更新数据结果
+            update_result(content_2)
 
     update_data(content)
+
     log.info('-------------------All works has done----------------------------')

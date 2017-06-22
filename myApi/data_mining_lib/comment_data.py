@@ -134,4 +134,4 @@ def main_process(data):
     return {'IsErr': False, 'ErrDesc': u'成功操作', 'data': result}
 
 if __name__ == '__main__':
-    get_sentence({"word": u'安装', "treasure_ids": ['37335419863'], "tag": u'差评', 'begin_date': '2017-01-18', 'end_date': '2017-06-01'})
+    get_sentence({"word": u'安装', "t_ids[]": ['37335419863'], "tag": u'差评', 'begin_date': '2017-01-18', 'end_date': '2017-06-01'})
