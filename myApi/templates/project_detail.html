@@ -2,46 +2,74 @@
 {% block title %}混合排列方案{% endblock %}
 {% block content %}
 {% if error %}
-    <p>{{error}}</p>
+<p>{{error}}</p>
 {% else %}
+<div class="row">
     <p>创建时间： {{created| date:"Y年n月d日 H:i" }} </p>
     {% if comment_text %}
-        <p>描述：{{comment_text}} </p>
+    <p>描述：{{comment_text}} </p>
     {% endif %}
+
     {% if comment_json %}
-        <table border="1" style="border-spacing: 1px;border-collapse: collapse;">
-            <thead><tr>
-                <td>序号</td>
-                <td>系列</td>
-                <td>产品编号</td>
-                <td>产品名称</td>
-                <td>产品描述</td>
-                <td>系列版本</td>
-                <td>产品版本</td>
-                <td>数量</td>
-            </tr></thead>
-            <tbody>
-            {% for data in comment_json %}
-                <tr>
-                    <td>{{forloop.counter}}</td>
-                    <td>{{data.Series}}</td>
-                    <td>{{data.SkuCode}}</td>
-                    <td>{{data.ItemName}}</td>
-                    <td>{{data.SkuName}}</td>
-                    <td>{{data.SeriesVersion}}</td>
-                    <td>{{data.BOMVersion}}</td>
-                    <td>{{data.Amount}}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <table class="table table-bordered">
+        <thead>
+        <tr>
+            <td>序号</td>
+            <td>系列</td>
+            <td>产品编号</td>
+            <td>产品名称</td>
+            <td>产品描述</td>
+            <td>系列版本</td>
+            <td>产品版本</td>
+            <td>数量</td>
+        </tr>
+        </thead>
+        <tbody>
+        {% for data in comment_json %}
+        <tr>
+            <td>{{forloop.counter}}</td>
+            <td>{{data.Series}}</td>
+            <td>{{data.SkuCode}}</td>
+            <td>{{data.ItemName}}</td>
+            <td>{{data.SkuName}}</td>
+            <td>{{data.SeriesVersion}}</td>
+            <td>{{data.BOMVersion}}</td>
+            <td>{{data.Amount}}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
     {% endif %}
-    <hr>
-    {%for abin in bin_list %}
-        <p>{{abin.sheet_name}}</p>
-        <p>使用数量：{{abin.num_sheet}}, 平均使用率：{{abin.avg_rate}}, 切割线长度：{{abin.cut_linear}}mm</p>
-        <p><a href="/{{abin.pic_url}}"> 排版设计图 </a> | <a href="/product/{{abin.bin_id}}">统计信息</a></p>
-        <hr>
-    {% endfor %}
+</div>
+<div class="row">
+    <div class="pull-left">
+        {%for abin in bin_list %}
+        <div >
+            <p>{{abin.sheet_name}}</p>
+            <p>使用数量：{{abin.num_sheet}}, 平均使用率：{{abin.avg_rate}}, 切割线长度：{{abin.cut_linear}}mm</p>
+            <p><a href="/{{abin.pic_url}}" target="_blank"> 排版设计图 </a> | <button id="{{ abin.bin_id}}" onclick="sendMes(this)" type="button" class="btn btn-primary btn-xs">统计信息</button>
+            </p>
+            <hr>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="pull-right">
+        <iframe id="detail" src="" width="700" height="500"></iframe>
+    </div>
+</div>
 {% endif %}
+
 {% endblock%}
+
+{% block script %}
+<script type="text/javascript" language="javascript">
+
+function sendMes(obj){
+  console.log(obj.id)
+  console.log($('#detail').attr('src'))
+  $('#detail').attr('src', '/product/' + obj.id);
+
+}
+
+</script>
+{% endblock %}

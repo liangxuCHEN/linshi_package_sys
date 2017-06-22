@@ -387,7 +387,7 @@ def update_new_work(data):
         update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s' where SkuCode='%s'" % (
             u'新任务', d['Created'].strftime('%Y-%m-%d %H:%M:%S'), d['SkuCode'])
         print update_sql
-        conn.exec_non_query(update_sql)
+        conn.exec_non_query(update_sql.encode('utf8'))
 
 
 def update_running_work(data):
