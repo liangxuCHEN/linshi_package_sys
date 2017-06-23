@@ -249,7 +249,7 @@ def del_same_data(same_bin_list, data_list):
 
 
 def detail_text(shape_list, situation_list, num_list):
-    reslut = list()
+    result = list()
 
     for shape in shape_list:
         data_dict = {}
@@ -268,9 +268,9 @@ def detail_text(shape_list, situation_list, num_list):
                 data_dict['num_list'].append(count)
             id_situation += 1
 
-        reslut.append(data_dict)
+        result.append(data_dict)
 
-    return json.dumps(reslut)
+    return json.dumps(result)
 
 
 def detail_empty_sections(empty_sections, shape_list, border, is_texture, is_vertical):

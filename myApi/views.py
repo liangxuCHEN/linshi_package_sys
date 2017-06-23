@@ -141,6 +141,53 @@ def product_use_rate(request):
 
 
 @csrf_exempt
+def product_use_rate_get_detail(request):
+    if request.method == 'POST':
+        # 是否已经有
+        project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
+        if project:
+            project.comment = request.POST.get('project_comment')
+            project.save()
+            # 需要rate
+            products = project.products.all()
+            rates = {}
+            for p in products:
+                tmp_list = p.rates.split(', ')
+                tmp_list = [float(x) for x in tmp_list]
+                rates[str(p.sheet_name.split(' ')[0])] = sum(tmp_list) / len(tmp_list)
+
+            content = {
+                'url': 'project_detail/%d' % project.id,
+                'rates': rates,
+            }
+            return HttpResponse(json.dumps(content), content_type="application/json")
+
+        filename = str(time.time()).split('.')[0]
+        path = os.path.join(settings.BASE_DIR, 'static')
+        path = os.path.join(path, filename)
+        results = package_main_function(request.POST, pathname=path)
+        if results['error']:
+            return HttpResponse(json.dumps(results), content_type="application/json")
+        else:
+            # 返回每种材料的平均利用率
+            rates = {}
+            try:
+                for res in results['statistics_data']:
+                    tmp_list = res['rates'].split(', ')
+                    tmp_list = [float(x) for x in tmp_list]
+                    rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
+                project_id = create_project(results, request.POST, filename)
+            except:
+                project_id = None
+
+            content = {
+                'url': 'project_detail/%d' % project_id,
+                'rates': rates,
+            }
+            return HttpResponse(json.dumps(content), content_type="application/json")
+
+
+@csrf_exempt
 def product_use_rate_demo(request):
     if request.method == 'POST':
         # 是否已经有

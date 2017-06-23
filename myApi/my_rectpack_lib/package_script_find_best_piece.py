@@ -3,6 +3,7 @@ import sys
 # sys.path.append("/home/django/linshi_package_sys/")
 import os
 from datetime import datetime as dt
+import time
 import json
 import pymssql
 import logging
@@ -10,6 +11,7 @@ import urllib2
 from urllib import urlencode
 import numpy as np
 from package import PackerSolution
+from package_tools import package_main_function
 from myApi import my_settings
 from django_api import settings
 from myApi.tools import send_mail
@@ -168,7 +170,7 @@ def http_post(num_piece, shape_data, bin_data):
     response = None
     try:
         response = urllib2.urlopen(req)  # 发送页面请求
-        response_url = response.read()
+        result = json.loads(response.read())
     except urllib2.URLError as e:
         code = ''
         reason = ''
@@ -184,10 +186,10 @@ def http_post(num_piece, shape_data, bin_data):
         body += '<p>http respose code:%s, reason: %s</p>' % (str(code), reason)
         send_mail_process(body)
     finally:
-        if response_url:
+        if result:
             response.close()
 
-    return response_url
+    return result['url'], result['rates']
 
 
 def send_mail_process(body):
@@ -388,16 +390,13 @@ def main_process():
         else:
             log.info('finish work skucode=%s and begin to draw the solution' % input_data['SkuCode'])
             # 访问API
-            http_response = http_post(result['piece'], input_data['ShapeData'], input_data['BinData'])
+            http_response, rates = http_post(result['piece'], input_data['ShapeData'], input_data['BinData'])
             result['url'] = my_settings.BASE_URL + http_response[1:-1] if http_response else 'no url'
             content_2['status'] = u'运算结束'
             content_2['url'] = result['url']
             content_2['rates'] = list()
-
-            for bin_info in json.loads(input_data['BinData']):
-                if bin_info['SkuCode'] in result['rates'].keys():
-                    bin_info['rate'] = result['rates'][bin_info['SkuCode']]
-                    content_2['rates'].append((content_2['SkuCode'], bin_info['SkuCode'], bin_info['rate']))
+            for skucode, rate in rates.items():
+                content_2['rates'].append((content_2['SkuCode'], skucode, rate))
 
             # 更新数据结果
             update_result(content_2)
@@ -434,16 +433,14 @@ def get_work_and_calc(post_data):
             else:
                 log.info('finish work skucode=%s and begin to draw the solution' % input_data['SkuCode'])
                 # 访问API
-                http_response = http_post(result['piece'], input_data['ShapeData'], input_data['BinData'])
-                result['url'] = my_settings.BASE_URL + http_response[1:-1] if http_response else 'no url'
+                http_response, rates = http_post(result['piece'], input_data['ShapeData'], input_data['BinData'])
+                result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
                 content_2['status'] = u'运算结束'
                 content_2['url'] = result['url']
                 content_2['rates'] = list()
 
-                for bin_info in json.loads(input_data['BinData']):
-                    if bin_info['SkuCode'] in result['rates'].keys():
-                        bin_info['rate'] = result['rates'][bin_info['SkuCode']]
-                        content_2['rates'].append((content_2['SkuCode'], bin_info['SkuCode'], bin_info['rate']))
+                for skucode, rate in rates.items():
+                    content_2['rates'].append((content_2['SkuCode'], skucode, rate))
 
                 # 更新数据结果
                 update_result(content_2)
