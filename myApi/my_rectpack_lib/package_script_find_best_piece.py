@@ -7,8 +7,6 @@ import sqlalchemy
 from sqlalchemy.pool import NullPool
 import json
 import pymssql
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine, bindparam, and_
 import logging
 import urllib2
 from urllib import urlencode
@@ -87,42 +85,12 @@ def log_init(file_name):
     return logging
 
 
-def init_connection():
-    # 'mysql://uid:pwd@localhost/mydb?charset=utf8'
-    engine = create_engine('mssql+pymssql://%s:%s@%s/%s?charset=utf8' % (
-        my_settings.HOST_USER,
-        my_settings.HOST_PASSWORD,
-        my_settings.HOST,
-        my_settings.DB
-    ), poolclass=NullPool)
-
-    connection = engine.connect()
-    metadata = sqlalchemy.schema.MetaData(bind=engine, reflect=True)
-    table_schema = sqlalchemy.Table(my_settings.TABLE, metadata, autoload=True)
-    return engine, connection, table_schema
-
-
-def update_data(data):
-    # init output connection
-    log.info('Saving the result into DB.......')
-    _, connection, table_schema = init_connection()
-    sql_text = table_schema.update().where(
-        table_schema.columns.id == bindparam('row_id')).values(Status=bindparam('status'), Result=bindparam('result'))
-    try:
-        connection.execute(sql_text, data)
-    except Exception as e:
-        log.error('error reason', e)
-    finally:
-        connection.close()
-
-
 def get_data():
     # init output connection
     log.info('get the table class....')
     conn = Mssql()
     sql_text = "select * From T_BOM_PlateUtilState where Status='新任务'"
     res = conn.exec_query(sql_text)
-    print res
     content = list()
     for input_data in res:
         content.append({
@@ -132,31 +100,7 @@ def get_data():
             'BinData': input_data[4],
             'Created': dt.today()
         })
-    # engine, connection, table_schema = init_connection()
-    # # 创建Session:
-    # Session = sessionmaker(bind=engine)
-    # session = Session()
-    # # 获取任务
-    # res = session.query(table_schema).filter(table_schema.columns.Status == 0).all()
-    # if len(res) == 0:
-    #     log.info('without work to do, exit now.')
-    #     exit(1)
-    # # 更新为运行中状态
-    # sql_text = table_schema.update().where(
-    #     table_schema.columns.id == bindparam('row_id')).values(Status=bindparam('status'))
-    # content = list()
-    # for input_data in res:
-    #     content.append({
-    #         'row_id': input_data.id,
-    #         'status': my_settings.RUNNING_STATUS,
-    #         'SkuCode': input_data.SkuCode,
-    #         'Created': dt.today()
-    #     })
-    # connection.execute(sql_text, content)
-    # # 断开连接
-    # session.close()
-    # connection.close()
-    # 更新运行中状态
+
     update_running_work(content)
     return content
 
@@ -278,12 +222,6 @@ def generate_work(input_data):
     insert_list = list()
     update_list = list()
     log.info('connecting the DB ....')
-    # # connection
-    # engine, connection, table_schema = init_connection()
-    # # 创建Session:
-    # Session = sessionmaker(bind=engine)
-    # session = Session()
-
     for data in datas:
         # 获取任务状态
         try:
@@ -292,9 +230,6 @@ def generate_work(input_data):
         except KeyError:
             log.error('missing the some of data ....')
             return {'ErrDesc': u'数据中缺少 ShapeData 或者 BinData 的数据', 'IsErr': True, 'data': ''}
-        # res = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(and_(
-        #     table_schema.columns.ShapeData == shape_data, table_schema.columns.BinData == bin_data
-        # )).first()
         res = has_same_work(shape_data, bin_data)
         # 已存在任务，返回任务状态和结果
         if res:
@@ -309,9 +244,6 @@ def generate_work(input_data):
                 'SkuCode': data['SkuCode'],
                 'Satuts': 0,
             })
-            # 版本号是否存在
-            # is_exist = session.query(table_schema.columns.Status, table_schema.columns.Result).filter(
-            #     table_schema.columns.SkuCode == data['SkuCode']).first()
             is_exist = find_skucode(data['SkuCode'])
             # 存在就更新数据，不存在就插入新数据
             if len(is_exist) > 0:
@@ -333,16 +265,6 @@ def generate_work(input_data):
 
     # update db
     log.info('saving the new works into DB ....')
-    # 如果出错发送邮件通知
-    # log.error('can not update the data in the db and send the mail to admin ....')
-    # body = '<p>运行 package_script_find_best_piece.py 出错，不能把新任务更新到数据库</p>'
-    # body += '<p>错误信息: %s</p>' % e
-    # send_mail_process(body)
-    # 如果出错发送邮件通知
-    # log.error('can not insert the data into the db and send the mail to admin ....')
-    # body = '<p>运行 package_script_find_best_piece.py 出错，不能把新任务保存到数据库</p>'
-    # body += '<p>错误信息: %s</p>' % e
-    # send_mail_process(body)
 
     # 更新另外的数据库
     if len(insert_list) > 0:
@@ -418,7 +340,6 @@ def update_result(data):
 
 
 def main_process():
-    print 'go to main_proecess'
     global log
     end_day = dt.today()
     log = log_init('find_best_piece%s.log' % end_day.strftime('%Y_%m_%d'))
@@ -428,7 +349,6 @@ def main_process():
 
     for input_data in rows:
         # 更新另外的数据库,每得到结果更新一次
-        print 'begin ...', input_data['SkuCode']
         content_2 = {}
         error, result = find_best_piece(input_data['ShapeData'], input_data['BinData'])
         content_2['SkuCode'] = input_data['SkuCode']
@@ -462,11 +382,10 @@ def main_process():
     log.info('-------------------All works has done----------------------------')
 
 
-def get_work_and_calc(input_data):
-    result = generate_work(input_data)
+def get_work_and_calc(post_data):
+    result = generate_work(post_data)
     yield result
     if not result['IsErr']:
-        print 'go to main_proecess'
         global log
         end_day = dt.today()
         log = log_init('find_best_piece%s.log' % end_day.strftime('%Y_%m_%d'))
@@ -476,7 +395,6 @@ def get_work_and_calc(input_data):
 
         for input_data in rows:
             # 更新另外的数据库,每得到结果更新一次
-            print 'begin ...', input_data['SkuCode']
             content_2 = {}
             error, result = find_best_piece(input_data['ShapeData'], input_data['BinData'])
             content_2['SkuCode'] = input_data['SkuCode']

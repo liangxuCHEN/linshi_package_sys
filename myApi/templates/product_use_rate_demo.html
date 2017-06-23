@@ -17,7 +17,8 @@
     <p>余料判别参数调整</p>
     <label>余料最小面积(mm^2)：</label><input type="number" name="min_size" min="0"  value="80000"/><br>
     <label>余料长边最小值(mm)：</label><input type="number" name="min_width" min="0" value="380"/><br>
-    <label>余料短边最小值(mm)：</label><input type="number" name="min_height" min="0" value="190"/>
+    <label>余料短边最小值(mm)：</label><input type="number" name="min_height" min="0" value="190"/><br>
+    <label>有效余料比例（0-100）：</label><input type="number" name="effective_rate" min="0" max="100" value="50"/><br>
     <p>余料再利用数据格式：板木编号,长,宽,数量，例子：A 2130*1010*18 1;A 630*510*18 3</p>
     <textarea rows="2" cols="50" name="bins_num">{{ bins_num }}</textarea><br>
     <p><label for="id_cut_linear_p">切割线系数:</label> <input id="id_cut_linear_p" max="100" min="0" name="cut_linear_p" type="number" value="30"></p>
