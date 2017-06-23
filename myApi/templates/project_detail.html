@@ -5,44 +5,46 @@
 <p>{{error}}</p>
 {% else %}
 <div class="row">
-    <p>创建时间： {{created| date:"Y年n月d日 H:i" }} </p>
-    {% if comment_text %}
-    <p>描述：{{comment_text}} </p>
-    {% endif %}
+        <p>创建时间： {{created| date:"Y年n月d日 H:i" }} </p>
+        {% if comment_text %}
+        <p>描述：{{comment_text}} </p>
+        {% endif %}
 
-    {% if comment_json %}
-    <table class="table table-bordered">
-        <thead>
-        <tr>
-            <td>序号</td>
-            <td>系列</td>
-            <td>产品编号</td>
-            <td>产品名称</td>
-            <td>产品描述</td>
-            <td>系列版本</td>
-            <td>产品版本</td>
-            <td>数量</td>
-        </tr>
-        </thead>
-        <tbody>
-        {% for data in comment_json %}
-        <tr>
-            <td>{{forloop.counter}}</td>
-            <td>{{data.Series}}</td>
-            <td>{{data.SkuCode}}</td>
-            <td>{{data.ItemName}}</td>
-            <td>{{data.SkuName}}</td>
-            <td>{{data.SeriesVersion}}</td>
-            <td>{{data.BOMVersion}}</td>
-            <td>{{data.Amount}}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% endif %}
+        {% if comment_json %}
+        <table class="table table-bordered table-hover">
+            <thead>
+            <tr>
+                <td>序号</td>
+                <td>系列</td>
+                <td>产品编号</td>
+                <td>产品名称</td>
+                <td>产品描述</td>
+                <td>系列版本</td>
+                <td>产品版本</td>
+                <td>数量</td>
+            </tr>
+            </thead>
+            <tbody>
+            {% for data in comment_json %}
+            <tr>
+                <td>{{forloop.counter}}</td>
+                <td>{{data.Series}}</td>
+                <td>{{data.SkuCode}}</td>
+                <td>{{data.ItemName}}</td>
+                <td>{{data.SkuName}}</td>
+                <td>{{data.SeriesVersion}}</td>
+                <td>{{data.BOMVersion}}</td>
+                <td>{{data.Amount}}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
 </div>
+<hr>
+<div class="clear"></div>
 <div class="row">
-    <div class="pull-left">
+    <div class="pull-left" width="50%">
         {%for abin in bin_list %}
         <div >
             <p>{{abin.sheet_name}}</p>
@@ -53,9 +55,8 @@
         </div>
         {% endfor %}
     </div>
-    <div class="pull-right">
-        <iframe id="detail" src="" width="700" height="500"></iframe>
-    </div>
+    <iframe id="detail" src="" width="600" height="500"></iframe>
+
 </div>
 {% endif %}
 

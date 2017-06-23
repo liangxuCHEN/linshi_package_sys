@@ -5,7 +5,7 @@
     <p>{{error}}</p>
 {% else %}
 
-    <table class="table table-bordered">
+    <table class="table table-bordered table-hover">
         <thead>
             <tr><td colspan="{{col_num}}"> <p>板材：{{sheet_name}}， 一共使用：{{num_sheet}}块， 平均使用率：{{avg_rate}}</p></td></tr>
             <tr>
@@ -64,7 +64,7 @@
         </tbody>
     </table><br>
     {% if empty_sections %}
-    <table class="table table-bordered">
+    <table class="table table-bordered table-hover">
         <thead><tr><td>余料</td><td>数量</td><td>面积(mm^2)</td>
             {% for detail in details %}
                 <td>#{{forloop.counter0}}</td>
