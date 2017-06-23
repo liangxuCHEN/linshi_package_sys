@@ -3,8 +3,6 @@ import sys
 # sys.path.append("/home/django/linshi_package_sys/")
 import os
 from datetime import datetime as dt
-import sqlalchemy
-from sqlalchemy.pool import NullPool
 import json
 import pymssql
 import logging
@@ -231,37 +229,36 @@ def generate_work(input_data):
             log.error('missing the some of data ....')
             return {'ErrDesc': u'数据中缺少 ShapeData 或者 BinData 的数据', 'IsErr': True, 'data': ''}
         res = has_same_work(shape_data, bin_data)
-        # 已存在任务，返回任务状态和结果
+        # 已存相同的数据，返回任务状态和结果
         if res:
+            # 如果SkuCode相同，直接返回结果, SkuCode不相同，写入详细结果
+            if res[0][0] != data['SkuCode']:
+                insert_same_data(res[0][0], res[0][2], data, shape_data, bin_data)
+
             result.append({
                 'SkuCode': data['SkuCode'],
                 'Satuts': res[0][1],
                 'Result': res[0][2],
             })
+
         else:
             # 新任务
             result.append({
                 'SkuCode': data['SkuCode'],
                 'Satuts': 0,
             })
-            is_exist = find_skucode(data['SkuCode'])
-            # 存在就更新数据，不存在就插入新数据
-            if len(is_exist) > 0:
-                update_list.append({
-                    'SkuCode': data['SkuCode'],
-                    'status': 0,
-                    'shapeData': shape_data,
-                    'binData': bin_data,
-                    'created': created
-                })
-            else:
-                insert_list.append({
-                    'SkuCode': data['SkuCode'],
-                    'Status': 0,
-                    'ShapeData': shape_data,
-                    'BinData': bin_data,
-                    'Created': created
-                })
+
+            # 是否有相同的SkuCode, 有就清除
+            find_skucode(data['SkuCode'])
+
+            # 插入新数据
+            insert_list.append({
+                'SkuCode': data['SkuCode'],
+                'Status': 0,
+                'ShapeData': shape_data,
+                'BinData': bin_data,
+                'Created': created
+            })
 
     # update db
     log.info('saving the new works into DB ....')
@@ -275,10 +272,45 @@ def generate_work(input_data):
     return {'ErrDesc': u'操作成功', 'IsErr': False, 'data': result}
 
 
+def insert_same_data(skucode, url, new_data, shape_data, bin_data):
+    conn = Mssql()
+    sql_text = "SELECT * FROM T_BOM_PlateUtilUsedRate WHERE ProductSkuCode='%s'" % skucode
+    # 拿结果
+    res = conn.exec_query(sql_text)
+    # 插入新数据
+    insert_data = list()
+    for data in res:
+        insert_data.append((new_data['SkuCode'], data[2], data[3]))
+
+    sql_text = "insert into T_BOM_PlateUtilUsedRate values (%s, %s, %s)"
+    conn.exec_many_query(sql_text, insert_data)
+
+    # 插入新的状态
+    timestamps = dt.today().strftime('%Y-%m-%d %H:%M:%S')
+    sql_text = "insert into T_BOM_PlateUtilState values ('%s','%s','%s','%s','%s','%s','%s')" % (
+        new_data['SkuCode'], url, shape_data, bin_data, u'运算结束', timestamps, timestamps)
+    conn.exec_non_query(sql_text)
+
+
 def find_skucode(skucode):
     conn = Mssql()
     sql_text = "SELECT SkuCode FROM T_BOM_PlateUtilState WHERE SkuCode='%s'" % skucode
-    return conn.exec_query(sql_text)
+    res = conn.exec_query(sql_text)
+    if len(res) > 0:
+        # 先删除（状态表和结果表），再更新
+        sql_text = "DELETE T_BOM_PlateUtilState WHERE SKuCode = '%s'" % skucode
+        conn.exec_non_query(sql_text)
+        sql_text = "DELETE T_BOM_PlateUtilUsedRate WHERE ProductSkuCode = '%s'" % skucode
+        conn.exec_non_query(sql_text)
+
+
+def update_new_work(data):
+    conn = Mssql()
+
+    for d in data:
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s' where SkuCode='%s'" % (
+            u'新任务', d['Created'].strftime('%Y-%m-%d %H:%M:%S'), d['SkuCode'])
+        conn.exec_non_query(update_sql.encode('utf8'))
 
 
 def has_same_work(shape_data, bin_data):
@@ -299,14 +331,6 @@ def insert_work(data):
     conn = Mssql()
     insert_sql = "insert into T_BOM_PlateUtilState values (%s,%s,%s,%s,%s,%s,%s)"
     conn.exec_many_query(insert_sql, insert_data)
-
-
-def update_new_work(data):
-    conn = Mssql()
-    for d in data:
-        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s' where SkuCode='%s'" % (
-            u'新任务', d['Created'].strftime('%Y-%m-%d %H:%M:%S'), d['SkuCode'])
-        conn.exec_non_query(update_sql.encode('utf8'))
 
 
 def update_running_work(data):

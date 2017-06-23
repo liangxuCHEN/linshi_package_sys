@@ -44,32 +44,28 @@
 <hr>
 <div class="clear"></div>
 <div class="row">
-    <div class="pull-left" width="50%">
         {%for abin in bin_list %}
         <div >
             <p>{{abin.sheet_name}}</p>
             <p>使用数量：{{abin.num_sheet}}, 平均使用率：{{abin.avg_rate}}, 切割线长度：{{abin.cut_linear}}mm</p>
             <p><a href="/{{abin.pic_url}}" target="_blank"> 排版设计图 </a> | <button id="{{ abin.bin_id}}" onclick="sendMes(this)" type="button" class="btn btn-primary btn-xs">统计信息</button>
             </p>
+            <div id="detail_{{ abin.bin_id}"></div>
             <hr>
         </div>
         {% endfor %}
-    </div>
-    <iframe id="detail" src="" width="600" height="500"></iframe>
-
+        <a href="/project" class="btn btn-default">返回</a>
 </div>
 {% endif %}
-
+<iframe id="detail" frameborder=0 src="" width="100%" height="600"></iframe>
 {% endblock%}
 
 {% block script %}
 <script type="text/javascript" language="javascript">
 
 function sendMes(obj){
-  console.log(obj.id)
-  console.log($('#detail').attr('src'))
   $('#detail').attr('src', '/product/' + obj.id);
-
+  window.location.hash = "#detail";
 }
 
 </script>
