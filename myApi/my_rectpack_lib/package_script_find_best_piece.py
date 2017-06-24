@@ -369,7 +369,6 @@ def main_process():
     log = log_init('find_best_piece%s.log' % end_day.strftime('%Y_%m_%d'))
     rows = get_data()
     log.info('connect to the DB and get the data, there are %d works today' % len(rows))
-    yield u'<p>一共有%d任务</p>' % len(rows)
 
     for input_data in rows:
         # 更新另外的数据库,每得到结果更新一次
@@ -381,7 +380,6 @@ def main_process():
             content_2['status'] = u'计算出错'
             update_result(content_2)
             log.error('work id=%d has error in input data ' % input_data['SkuCode'])
-            yield u'<p>运行出错，输入数据有误</p>'
             # 如果出错发送邮件通知
             body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
             send_mail_process(body)
@@ -389,7 +387,7 @@ def main_process():
             log.info('finish work skucode=%s and begin to draw the solution' % input_data['SkuCode'])
             # 访问API
             http_response, rates = http_post(result['piece'], input_data['ShapeData'], input_data['BinData'])
-            result['url'] = my_settings.BASE_URL + http_response[1:-1] if http_response else 'no url'
+            result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
             content_2['status'] = u'运算结束'
             content_2['url'] = result['url']
             content_2['rates'] = list()
@@ -398,7 +396,6 @@ def main_process():
 
             # 更新数据结果
             update_result(content_2)
-            yield u'<p>计算Skucode:%s 结束，更新数据</p>' % input_data['SkuCode']
 
     log.info('-------------------All works has done----------------------------')
 
