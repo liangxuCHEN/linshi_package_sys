@@ -117,6 +117,7 @@ def product_use_rate(request):
         project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
         if project:
             project.comment = request.POST.get('project_comment')
+            project.pk = None
             project.save()
             content = 'project_detail/%d' % project.id
             return HttpResponse(json.dumps(content), content_type="application/json")
@@ -147,6 +148,7 @@ def product_use_rate_get_detail(request):
         project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
         if project:
             project.comment = request.POST.get('project_comment')
+            project.pk = None
             project.save()
             # 需要rate
             products = project.products.all()
@@ -194,6 +196,7 @@ def product_use_rate_demo(request):
         project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
         if project:
             project.comment = request.POST.get('project_comment')
+            project.pk = None
             project.save()
             content = {
                 'shape_data': request.POST['shape_data'],
