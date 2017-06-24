@@ -3,7 +3,6 @@ import sys
 # sys.path.append("/home/django/linshi_package_sys/")
 import os
 from datetime import datetime as dt
-import time
 import json
 import pymssql
 import logging
@@ -11,7 +10,6 @@ import urllib2
 from urllib import urlencode
 import numpy as np
 from package import PackerSolution
-from package_tools import package_main_function
 from myApi import my_settings
 from django_api import settings
 from myApi.tools import send_mail
