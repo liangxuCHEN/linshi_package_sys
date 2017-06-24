@@ -47,7 +47,7 @@
             </tr>
 
             {% if total_rates %}
-            <tr><td colspan="3">总利用率：</td>
+            <tr><td colspan="3">总利用率(余料占比{{percent}}%)：</td>
             {% for rate in total_rates %}
                 <td>{{rate}}</td>
             {% endfor %}

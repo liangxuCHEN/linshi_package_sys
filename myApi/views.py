@@ -276,22 +276,31 @@ def create_project(results, post_data, filename):
 
 
 def cut_detail(request, p_id):
+    # 是否带余料占比参数
+    percent = request.GET.get('percent')
+    if percent:
+        percent = int(percent)
+    else:
+        percent = 50
     product = get_object_or_404(ProductRateDetail, pk=p_id)
     content = {
         'sheet_name': product.sheet_name,
         'num_sheet': product.num_sheet,
         'avg_rate': product.avg_rate,
         'pic_url': product.pic_url,
+        'percent': percent,
     }
 
     if product is not None:
         # 合并相同排版
         same_bin_list = product.same_bin_list.split(',')
+        # 板木数量
         content['bin_num'] = del_same_data(same_bin_list, same_bin_list)
         # 图形的数量
         num_shape = product.num_shape.split(',')
 
         # 图形的每个板数量
+        total_area = 0
         try:
             content['details'] = json.loads(product.detail)
             total_shape = 0
@@ -302,6 +311,8 @@ def cut_detail(request, p_id):
                     tmp_sum += int(detail['num_list'][x]) * int(content['bin_num'][x])
 
                 detail['total'] = tmp_sum
+                # 求产品总面积
+                total_area += float(detail['width']) * float(detail['height']) * detail['total']
                 total_shape += int(num_shape[i_shape])
                 i_shape += 1
 
@@ -323,6 +334,9 @@ def cut_detail(request, p_id):
                     tmp_sum += int(tmp_list[x]) * int(content['bin_num'][x-2])
 
                 detail_dic['total'] = tmp_sum
+                # 求产品总面积
+                total_area += float(detail_dic['width']) * float(detail_dic['height']) * detail_dic['total']
+
                 total_shape += int(num_shape[i_shape])
                 i_shape += 1
                 detail_list.append(detail_dic)
@@ -337,16 +351,6 @@ def cut_detail(request, p_id):
         # 每块板的利用率
         content['rates'] = del_same_data(same_bin_list, product.rates.split(','))
         content['rates'].append(content['avg_rate'])
-        try:
-            # 每块板总利用率
-            content['total_rates'] = del_same_data(same_bin_list, product.total_rates.split(','))
-            # 求平均总利用率
-            tmp_total = 0
-            for rate in content['total_rates']:
-                tmp_total += float(rate)
-            content['total_rates'].append('%0.4f' % (tmp_total/len(content['total_rates'])))
-        except:
-            pass
 
         try:
             # 每块板余料面积
@@ -358,6 +362,26 @@ def cut_detail(request, p_id):
             content['empty_section_ares'].append(tmp_total)
         except:
             pass
+
+        try:
+            if content['percent'] != 50:
+                # 求图形总面积，求板材总面积，
+                bin_per_area = total_area / content['avg_rate'] / content['num_sheet']
+                content['total_rates'] = list()
+                for empty_area, rate in zip(content['empty_section_ares'][:-1], content['rates'][:-1]):
+                    content['total_rates'].append('%0.4f' % (
+                        float(empty_area) * content['percent'] / bin_per_area / 100 + float(rate)))
+            else:
+                # 每块板总利用率
+                content['total_rates'] = del_same_data(same_bin_list, product.total_rates.split(','))
+
+            # 求平均总利用率
+            tmp_total = 0
+            for rate, total_pec in zip(content['total_rates'], content['bin_num']):
+                tmp_total += float(rate) * int(total_pec)
+            content['total_rates'].append('%0.4f' % (tmp_total/content['num_sheet']))
+        except Exception as e:
+            print e
 
         # 余料信息
         try:
