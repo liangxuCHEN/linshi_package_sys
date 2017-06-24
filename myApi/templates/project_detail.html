@@ -6,6 +6,30 @@
 {% else %}
 <div class="row">
         <p>创建时间： {{created| date:"Y年n月d日 H:i" }} </p>
+        {% if comment_dict %}
+            <table class="table table-bordered">
+                <thead>
+            <tr>
+                <td>系列</td>
+                <td>产品编号</td>
+                <td>产品名称</td>
+                <td>产品描述</td>
+                <td>最优生产数量</td>
+                <td>图片</td>
+            </tr>
+                </thead>
+            <tbody>
+             <tr>
+                <td>{{comment_dict.Series}}</td>
+                <td>{{comment_dict.SkuCode}}</td>
+                <td>{{comment_dict.ItemName}}</td>
+                <td>{{comment_dict.SkuName}}</td>
+                <td>{{comment_dict.Amount}}</td>
+                 <td><img src="{{comment_dict.SkuPic}}" width="150" height="150"/></td>
+            </tr>
+            </tbody>
+            </table>
+        {% endif %}
         {% if comment_text %}
         <p>描述：{{comment_text}} </p>
         {% endif %}

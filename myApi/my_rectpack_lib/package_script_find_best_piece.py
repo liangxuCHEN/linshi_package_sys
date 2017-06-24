@@ -94,9 +94,10 @@ def get_data():
         content.append({
             'row_id': input_data[0],
             'SkuCode': input_data[1],
-            'ShapeData': input_data[3],
-            'BinData': input_data[4],
-            'Created': dt.today()
+            'ShapeData': input_data[4],
+            'BinData': input_data[5],
+            'Created': dt.today(),
+            'Product': input_data[2],
         })
 
     update_running_work(content)
@@ -151,20 +152,29 @@ def find_best_piece(shape_data, bin_data, border=5):
         num_pic += 1
 
 
-def http_post(num_piece, shape_data, bin_data):
+def http_post(num_piece, shape_data, bin_data, comment=None):
     url = my_settings.URL_POST
     # 整理input data
     s_data, b_data = multi_piece(num_piece, shape_data, bin_data)
+    # 整理描述
+    if comment:
+        try:
+            comment = json.loads(comment)
+            comment['Amount'] = num_piece
+            comment = json.dumps(comment, ensure_ascii=False)
+        except:
+            comment += ' 最优利用率推荐生产数量=%d' % num_piece
 
+    else:
+        comment = '最优利用率推荐生产数量=%d' % num_piece
     values = {
-        'project_comment': '最优利用率推荐生产数量=%d' % num_piece,
+        'project_comment': comment.encode('utf8'),
         'border': 5,
         'shape_data': s_data,
         'bin_data': b_data
     }
     data = urlencode(values)
     req = urllib2.Request(url, data)  # 生成页面请求的完整数据
-    response_url = None
     response = None
     try:
         response = urllib2.urlopen(req)  # 发送页面请求
@@ -225,6 +235,7 @@ def generate_work(input_data):
         try:
             shape_data = json.dumps(data['ShapeData'], ensure_ascii=False)
             bin_data = json.dumps(data['BinData'], ensure_ascii=False)
+            product_comment = json.dumps(data['Product'], ensure_ascii=False)
         except KeyError:
             log.error('missing the some of data ....')
             return {'ErrDesc': u'数据中缺少 ShapeData 或者 BinData 的数据', 'IsErr': True, 'data': ''}
@@ -233,7 +244,7 @@ def generate_work(input_data):
         if res:
             # 如果SkuCode相同，直接返回结果, SkuCode不相同，写入详细结果
             if res[0][0] != data['SkuCode']:
-                insert_same_data(res[0][0], res[0][2], data, shape_data, bin_data)
+                insert_same_data(res[0][0], res[0][2], data, shape_data, bin_data, product_comment)
 
             result.append({
                 'SkuCode': data['SkuCode'],
@@ -257,7 +268,8 @@ def generate_work(input_data):
                 'Status': 0,
                 'ShapeData': shape_data,
                 'BinData': bin_data,
-                'Created': created
+                'Created': created,
+                'Product': product_comment,
             })
 
     # update db
@@ -272,7 +284,7 @@ def generate_work(input_data):
     return {'ErrDesc': u'操作成功', 'IsErr': False, 'data': result}
 
 
-def insert_same_data(skucode, url, new_data, shape_data, bin_data):
+def insert_same_data(skucode, url, new_data, shape_data, bin_data, comment):
     conn = Mssql()
     sql_text = "SELECT * FROM T_BOM_PlateUtilUsedRate WHERE ProductSkuCode='%s'" % skucode
     # 拿结果
@@ -287,8 +299,8 @@ def insert_same_data(skucode, url, new_data, shape_data, bin_data):
 
     # 插入新的状态
     timestamps = dt.today().strftime('%Y-%m-%d %H:%M:%S')
-    sql_text = "insert into T_BOM_PlateUtilState values ('%s','%s','%s','%s','%s','%s','%s')" % (
-        new_data['SkuCode'], url, shape_data, bin_data, u'运算结束', timestamps, timestamps)
+    sql_text = "insert into T_BOM_PlateUtilState values ('%s','%s','%s','%s','%s','%s','%s','%s')" % (
+        new_data['SkuCode'], comment, url, shape_data, bin_data, u'运算结束', timestamps, timestamps)
     conn.exec_non_query(sql_text)
 
 
@@ -324,12 +336,12 @@ def insert_work(data):
     insert_data = list()
     for d in data:
         insert_data.append((
-            d['SkuCode'], '', d['ShapeData'], d['BinData'],
+            d['SkuCode'], d['Product'], '', d['ShapeData'], d['BinData'],
             u'新任务', d['Created'].strftime('%Y-%m-%d %H:%M:%S'),
             d['Created'].strftime('%Y-%m-%d %H:%M:%S')
         ))
     conn = Mssql()
-    insert_sql = "insert into T_BOM_PlateUtilState values (%s,%s,%s,%s,%s,%s,%s)"
+    insert_sql = "insert into T_BOM_PlateUtilState values (%s,%s,%s,%s,%s,%s,%s,%s)"
     conn.exec_many_query(insert_sql, insert_data)
 
 
@@ -386,7 +398,8 @@ def main_process():
         else:
             log.info('finish work skucode=%s and begin to draw the solution' % input_data['SkuCode'])
             # 访问API
-            http_response, rates = http_post(result['piece'], input_data['ShapeData'], input_data['BinData'])
+            http_response, rates = http_post(result['piece'], input_data['ShapeData'],
+                                             input_data['BinData'], comment=input_data['Product'])
             result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
             content_2['status'] = u'运算结束'
             content_2['url'] = result['url']
@@ -428,7 +441,8 @@ def get_work_and_calc(post_data):
             else:
                 log.info('finish work skucode=%s and begin to draw the solution' % input_data['SkuCode'])
                 # 访问API
-                http_response, rates = http_post(result['piece'], input_data['ShapeData'], input_data['BinData'])
+                http_response, rates = http_post(result['piece'], input_data['ShapeData'],
+                                                 input_data['BinData'], comment=input_data['Product'])
                 result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
                 content_2['status'] = u'运算结束'
                 content_2['url'] = result['url']

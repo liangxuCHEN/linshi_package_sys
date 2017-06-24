@@ -437,7 +437,11 @@ def project_detail(request, p_id):
         'percent': percent,
     }
     try:
-        content['comment_json'] = json.loads(project.comment)
+        comments = json.loads(project.comment)
+        if type(list()) == type(comments):
+            content['comment_json'] = json.loads(project.comment)
+        else:
+            content['comment_dict'] = comments
     except:
         content['comment_text'] = project.comment
 
