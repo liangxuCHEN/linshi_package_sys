@@ -41,7 +41,7 @@
         </table>
         {% endif %}
         <form class="form" method="get" action="{{request.path}}">
-            <label>余料算到用料的百分比</label><input type="number" value="50" max="100", min="0" id="percent"/>
+            <label>余料算到用料的百分比</label><input type="number" value="{{percent}}" max="100", min="0" id="percent" name="percent"/>
         </form>
 </div>
 <hr>

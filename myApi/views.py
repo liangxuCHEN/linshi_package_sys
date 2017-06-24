@@ -423,11 +423,18 @@ def statistics_algo(request):
 
 
 def project_detail(request, p_id):
+    # 是否带余料占比参数
+    percent = request.GET.get('percent')
+    if percent:
+        percent = int(percent)
+    else:
+        percent = 50
     project = get_object_or_404(Project, pk=p_id)
     bin_list = project.products.all()
     content = {
         'created': project.created,
-        'bin_list': list()
+        'bin_list': list(),
+        'percent': percent,
     }
     try:
         content['comment_json'] = json.loads(project.comment)
