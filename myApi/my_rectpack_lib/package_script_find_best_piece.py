@@ -94,10 +94,11 @@ def get_data():
         content.append({
             'row_id': input_data[0],
             'SkuCode': input_data[1],
-            'ShapeData': input_data[4],
-            'BinData': input_data[5],
+            'ShapeData': input_data[5],
+            'BinData': input_data[6],
             'Created': dt.today(),
-            'Product': input_data[2],
+            'Product': input_data[3],
+            'BOMVersion': input_data[2],
         })
 
     update_running_work(content)
@@ -242,12 +243,19 @@ def generate_work(input_data):
         res = has_same_work(shape_data, bin_data)
         # 已存相同的数据，返回任务状态和结果
         if res:
-            # 如果SkuCode相同，直接返回结果, SkuCode不相同，写入详细结果
-            if res[0][0] != data['SkuCode']:
+            # 如果BOMVersion相同，直接返回结果, BOMVersion不相同，写入详细结果
+            if res[0][0] != data['BOMVersion']:
                 insert_same_data(res[0][0], res[0][2], data, shape_data, bin_data, product_comment)
+            else:
+                update_list.append({
+                    'SkuCode': data['SkuCode'],
+                    'Product': product_comment,
+                    'BOMVersion': data['BOMVersion'],
+                    'Update': created,
+                })
 
             result.append({
-                'SkuCode': data['SkuCode'],
+                'SkuCode': data['BOMVersion'],
                 'Satuts': res[0][1],
                 'Result': res[0][2],
             })
@@ -255,12 +263,12 @@ def generate_work(input_data):
         else:
             # 新任务
             result.append({
-                'SkuCode': data['SkuCode'],
+                'SkuCode': data['BOMVersion'],
                 'Satuts': 0,
             })
 
-            # 是否有相同的SkuCode, 有就清除
-            find_skucode(data['SkuCode'])
+            # 是否有相同的BOMVersion, 有就清除
+            find_skucode(data['BOMVersion'])
 
             # 插入新数据
             insert_list.append({
@@ -270,6 +278,7 @@ def generate_work(input_data):
                 'BinData': bin_data,
                 'Created': created,
                 'Product': product_comment,
+                'BOMVersion': data['BOMVersion']
             })
 
     # update db
@@ -284,35 +293,42 @@ def generate_work(input_data):
     return {'ErrDesc': u'操作成功', 'IsErr': False, 'data': result}
 
 
-def insert_same_data(skucode, url, new_data, shape_data, bin_data, comment):
+def insert_same_data(bon_version, url, new_data, shape_data, bin_data, comment):
     conn = Mssql()
-    sql_text = "SELECT * FROM T_BOM_PlateUtilUsedRate WHERE ProductSkuCode='%s'" % skucode
+    sql_text = "SELECT * FROM T_BOM_PlateUtilUsedRate WHERE BOMVersion='%s'" % bon_version
     # 拿结果
     res = conn.exec_query(sql_text)
+
+    # 先看是否存在, 存在就删除原来数据
+    sql_text = "delete T_BOM_PlateUtilState where BOMVersion='%s'" % new_data['BOMVersion']
+    conn.exec_non_query(sql_text)
+    sql_text = "delete T_BOM_PlateUtilUsedRate where BOMVersion='%s'" % new_data['BOMVersion']
+    conn.exec_non_query(sql_text)
+
     # 插入新数据
     insert_data = list()
     for data in res:
-        insert_data.append((new_data['SkuCode'], data[2], data[3]))
+        insert_data.append((new_data['SkuCode'], new_data['BOMVersion'], data[3], data[4]))
 
-    sql_text = "insert into T_BOM_PlateUtilUsedRate values (%s, %s, %s)"
+    sql_text = "insert into T_BOM_PlateUtilUsedRate values (%s, %s, %s, %s)"
     conn.exec_many_query(sql_text, insert_data)
 
     # 插入新的状态
     timestamps = dt.today().strftime('%Y-%m-%d %H:%M:%S')
-    sql_text = "insert into T_BOM_PlateUtilState values ('%s','%s','%s','%s','%s','%s','%s','%s')" % (
-        new_data['SkuCode'], comment, url, shape_data, bin_data, u'运算结束', timestamps, timestamps)
+    sql_text = "insert into T_BOM_PlateUtilState values ('%s','%s','%s','%s','%s','%s','%s','%s','%s')" % (
+        new_data['SkuCode'], new_data['BOMVersion'], comment, url, shape_data, bin_data, u'运算结束', timestamps, timestamps)
     conn.exec_non_query(sql_text)
 
 
-def find_skucode(skucode):
+def find_skucode(bon_version):
     conn = Mssql()
-    sql_text = "SELECT SkuCode FROM T_BOM_PlateUtilState WHERE SkuCode='%s'" % skucode
+    sql_text = "SELECT BOMVersion FROM T_BOM_PlateUtilState WHERE BOMVersion='%s'" % bon_version
     res = conn.exec_query(sql_text)
     if len(res) > 0:
         # 先删除（状态表和结果表），再更新
-        sql_text = "DELETE T_BOM_PlateUtilState WHERE SKuCode = '%s'" % skucode
+        sql_text = "DELETE T_BOM_PlateUtilState WHERE BOMVersion = '%s'" % bon_version
         conn.exec_non_query(sql_text)
-        sql_text = "DELETE T_BOM_PlateUtilUsedRate WHERE ProductSkuCode = '%s'" % skucode
+        sql_text = "DELETE T_BOM_PlateUtilUsedRate WHERE BOMVersion = '%s'" % bon_version
         conn.exec_non_query(sql_text)
 
 
@@ -320,14 +336,14 @@ def update_new_work(data):
     conn = Mssql()
 
     for d in data:
-        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s' where SkuCode='%s'" % (
-            u'新任务', d['Created'].strftime('%Y-%m-%d %H:%M:%S'), d['SkuCode'])
+        update_sql = "update T_BOM_PlateUtilState set Product='%s',UpdateDate='%s',SkuCode='%s'where BOMVersion='%s'" % (
+            d['Product'], d['Update'].strftime('%Y-%m-%d %H:%M:%S'), d['SkuCode'], d['BOMVersion'])
         conn.exec_non_query(update_sql.encode('utf8'))
 
 
 def has_same_work(shape_data, bin_data):
     conn = Mssql()
-    sql_text = "SELECT SkuCode, Status, Url FROM T_BOM_PlateUtilState WHERE ShapeData='%s' and BinData='%s'" % (
+    sql_text = "SELECT BOMVersion, Status, Url FROM T_BOM_PlateUtilState WHERE ShapeData='%s' and BinData='%s'" % (
         shape_data, bin_data)
     return conn.exec_query(sql_text)
 
@@ -336,20 +352,20 @@ def insert_work(data):
     insert_data = list()
     for d in data:
         insert_data.append((
-            d['SkuCode'], d['Product'], '', d['ShapeData'], d['BinData'],
+            d['SkuCode'], d['BOMVersion'], d['Product'], '', d['ShapeData'], d['BinData'],
             u'新任务', d['Created'].strftime('%Y-%m-%d %H:%M:%S'),
             d['Created'].strftime('%Y-%m-%d %H:%M:%S')
         ))
     conn = Mssql()
-    insert_sql = "insert into T_BOM_PlateUtilState values (%s,%s,%s,%s,%s,%s,%s,%s)"
+    insert_sql = "insert into T_BOM_PlateUtilState values (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
     conn.exec_many_query(insert_sql, insert_data)
 
 
 def update_running_work(data):
     conn = Mssql()
     for d in data:
-        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s' where SkuCode='%s'" % (
-            u'运行中', d['Created'].strftime('%Y-%m-%d %H:%M:%S'), d['SkuCode'])
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s' where BOMVersion='%s'" % (
+            u'运行中', d['Created'].strftime('%Y-%m-%d %H:%M:%S'), d['BOMVersion'])
         conn.exec_non_query(update_sql.encode('utf8'))
 
 
@@ -357,11 +373,11 @@ def update_ending_work(data):
     conn = Mssql()
 
     if data['status'] == u'计算出错':
-        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s'where SkuCode='%s'" % (
-            data['status'],  data['Created'].strftime('%Y-%m-%d %H:%M:%S'), data['SkuCode'])
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s'where BOMVersion='%s'" % (
+            data['status'],  data['Created'].strftime('%Y-%m-%d %H:%M:%S'), data['BOMVersion'])
     else:
-        update_sql = "update T_BOM_PlateUtilState set Status='%s',Url='%s',UpdateDate='%s'where SkuCode='%s'" % (
-            data['status'], data['url'], data['Created'].strftime('%Y-%m-%d %H:%M:%S'), data['SkuCode'])
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',Url='%s',UpdateDate='%s'where BOMVersion='%s'" % (
+            data['status'], data['url'], data['Created'].strftime('%Y-%m-%d %H:%M:%S'), data['BOMVersion'])
     conn.exec_non_query(update_sql.encode('utf8'))
 
 
@@ -369,9 +385,9 @@ def update_result(data):
     update_ending_work(data)
     conn = Mssql()
     # 先看是否存在, 存在就删除原来数据
-    sql_text = "delete T_BOM_PlateUtilUsedRate where ProductSkuCode='%s'" % data['SkuCode']
+    sql_text = "delete T_BOM_PlateUtilUsedRate where BOMVersion='%s'" % data['BOMVersion']
     conn.exec_non_query(sql_text)
-    sql_text = "insert into T_BOM_PlateUtilUsedRate values (%s, %s, %s)"
+    sql_text = "insert into T_BOM_PlateUtilUsedRate values (%s, %s, %s, %s)"
     conn.exec_many_query(sql_text, data['rates'])
 
 
@@ -386,17 +402,17 @@ def main_process():
         # 更新另外的数据库,每得到结果更新一次
         content_2 = {}
         error, result = find_best_piece(input_data['ShapeData'], input_data['BinData'])
-        content_2['SkuCode'] = input_data['SkuCode']
+        content_2['BOMVersion'] = input_data['BOMVersion']
         content_2['Created'] = dt.today()
         if error:
             content_2['status'] = u'计算出错'
             update_result(content_2)
-            log.error('work id=%d has error in input data ' % input_data['SkuCode'])
+            log.error('work BOMVersion=%d has error in input data ' % input_data['BOMVersion'])
             # 如果出错发送邮件通知
             body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
             send_mail_process(body)
         else:
-            log.info('finish work skucode=%s and begin to draw the solution' % input_data['SkuCode'])
+            log.info('finish work BOMVersion=%s and begin to draw the solution' % input_data['BOMVersion'])
             # 访问API
             http_response, rates = http_post(result['piece'], input_data['ShapeData'],
                                              input_data['BinData'], comment=input_data['Product'])
@@ -405,7 +421,7 @@ def main_process():
             content_2['url'] = result['url']
             content_2['rates'] = list()
             for skucode, rate in rates.items():
-                content_2['rates'].append((content_2['SkuCode'], skucode, rate))
+                content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
 
             # 更新数据结果
             update_result(content_2)
@@ -428,18 +444,19 @@ def get_work_and_calc(post_data):
             # 更新另外的数据库,每得到结果更新一次
             content_2 = {}
             error, result = find_best_piece(input_data['ShapeData'], input_data['BinData'])
+            content_2['BOMVersion'] = input_data['BOMVersion']
             content_2['SkuCode'] = input_data['SkuCode']
             content_2['Created'] = dt.today()
             if error:
                 content_2['status'] = u'计算出错'
                 update_result(content_2)
-                log.error('work id=%d has error in input data ' % input_data['SkuCode'])
+                log.error('work BOMVersion=%d has error in input data ' % input_data['BOMVersion'])
                 yield u'<p>运行出错，输入数据有误</p>'
                 # 如果出错发送邮件通知
                 body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
                 send_mail_process(body)
             else:
-                log.info('finish work skucode=%s and begin to draw the solution' % input_data['SkuCode'])
+                log.info('finish work BOMVersion=%s and begin to draw the solution' % input_data['BOMVersion'])
                 # 访问API
                 http_response, rates = http_post(result['piece'], input_data['ShapeData'],
                                                  input_data['BinData'], comment=input_data['Product'])
@@ -449,11 +466,11 @@ def get_work_and_calc(post_data):
                 content_2['rates'] = list()
 
                 for skucode, rate in rates.items():
-                    content_2['rates'].append((content_2['SkuCode'], skucode, rate))
+                    content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
 
                 # 更新数据结果
                 update_result(content_2)
-                yield u'<p>计算Skucode:%s 结束，更新数据</p>' % input_data['SkuCode']
+                yield u'<p>计算BOMVersion:%s 结束，更新数据</p>' % input_data['BOMVersion']
 
         log.info('-------------------All works has done----------------------------')
 
