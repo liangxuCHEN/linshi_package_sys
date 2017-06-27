@@ -63,6 +63,8 @@ def learn_model(file_name):
     except Exception as e:
         return {'IsErr': True, 'ErrDesc': u'找不到文档或者读取文档出错'}
     try:
+        # 删去缺失值的行
+        df = df.dropna(axis=0)
         df = df.apply(split_comment, axis=1)
     except Exception as e:
         return {'IsErr': True, 'ErrDesc': u'文档格式有误，应包含Tag（标签名字），Comment（评价内容）'}
@@ -129,5 +131,5 @@ def predict_test(model_path, data):
 
 
 if __name__ == '__main__':
-    print learn_model('learn_01.xls')
+    print learn_model('learn_06_28.xls')
 
