@@ -18,7 +18,7 @@ from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_func
 from myApi.my_rectpack_lib.package_script_find_best_piece import get_work_and_calc
 
 from myApi.models import Userate, ProductRateDetail, Project
-from myApi.data_mining_lib.comment_data import main_process as calc_comment, get_sentence
+from myApi.data_mining_lib.comment_data import main_process as calc_comment, get_sentence, get_all_comment_to_excel
 from myApi.data_mining_lib.nlp_tools import learn_model, predict_test
 from myApi.tools import handle_uploaded_file
 
@@ -525,6 +525,24 @@ def get_comment_sentence(request):
         response["Access-Control-Max-Age"] = "1000"
         response["Access-Control-Allow-Headers"] = "*"
         return response
+
+
+def get_all_comment(request):
+    path = os.path.join(settings.BASE_DIR, 'static', 'download')
+    filename = os.path.join(path, request.GET.get('item_id')+'.xls')
+    res = get_all_comment_to_excel(request.GET.get('item_id'), filename)
+    if res:
+        url = 'static/download/%s.xls' % request.GET.get('item_id')
+        content = {'IsErr': False, 'ErrDesc': 'success', 'url': url}
+    else:
+        content = {'IsErr': True, 'ErrDesc': 'there is any comment'}
+
+    response = HttpResponse(json.dumps(content), content_type="application/json")
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Access-Control-Allow-Methods"] = "GET"
+    response["Access-Control-Max-Age"] = "1000"
+    response["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 class ProjectIndexView(generic.ListView):

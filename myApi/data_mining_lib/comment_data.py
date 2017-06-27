@@ -19,6 +19,39 @@ def init_sql():
     return conn
 
 
+def init_sql_253():
+    conn = pymssql.connect(
+        host='192.168.1.253:1433',
+        user='bs-prt',
+        password='123123',
+        database='Collectiondb',
+    )
+    return conn
+
+
+def get_all_comment_to_excel(item_id, file_path):
+    conn = init_sql_253()
+    sql_text = """
+    select TOP 10 a.ItemName '项目名称', a.TreasureID '宝贝ID', a.TreasureName '宝贝名称',
+    a.TreasureLink '宝贝链接', a.ShopName '商店名称',
+    a.EvaluationScores '宝贝评分', a.Category_Name '类目', a.StyleName '风格',
+    b.AuctionSku '规格描述', b.RateContent '买家评论'
+    from T_Treasure_EvalCustomItem_Detail as a
+    RIGHT JOIN V_Treasure_Evaluation as b
+    on a.TreasureID = b.TreasureID
+    WHERE a.ItemID='{item_id}'
+    """.format(item_id=item_id)
+
+    try:
+        df = pd.io.sql.read_sql(sql_text, con=conn)
+        writer = pd.ExcelWriter(file_path)
+        df.to_excel(writer, 'Sheet1')
+        writer.save()
+    except Exception as e:
+        return False
+    return True
+
+
 def load_data(id_list, begin_date, end_date):
     # 整理数据
     conn = init_sql()
@@ -133,5 +166,7 @@ def main_process(data):
 
     return {'IsErr': False, 'ErrDesc': u'成功操作', 'data': result}
 
+
 if __name__ == '__main__':
-    get_sentence({"word": u'安装', "t_ids[]": ['37335419863'], "tag": u'差评', 'begin_date': '2017-01-18', 'end_date': '2017-06-01'})
+    # get_sentence({"word": u'安装', "t_ids[]": ['37335419863'], "tag": u'差评', 'begin_date': '2017-01-18', 'end_date': '2017-06-01'})
+    get_all_comment('3E0CCDA7-572C-4914-8F40-82A9736FAE20', 'xx')
