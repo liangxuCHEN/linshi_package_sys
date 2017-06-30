@@ -41,7 +41,7 @@ def get_comment_and_pic(item_id, begin_date, end_date):
 def get_all_comment_to_excel(item_id, file_path):
     conn = init_sql_253()
     sql_text = """
-    select TOP 10 a.ItemName '项目名称', a.TreasureID '宝贝ID', a.TreasureName '宝贝名称',
+    select a.ItemName '项目名称', a.TreasureID '宝贝ID', a.TreasureName '宝贝名称',
     a.TreasureLink '宝贝链接', a.ShopName '商店名称',
     a.EvaluationScores '宝贝评分', a.Category_Name '类目', a.StyleName '风格',
     b.AuctionSku '规格描述', b.RateContent '买家评论'
