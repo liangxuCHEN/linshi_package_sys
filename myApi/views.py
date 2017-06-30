@@ -117,9 +117,14 @@ def product_use_rate(request):
         # 是否已经有
         project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
         if project:
-            project.comment = request.POST.get('project_comment')
-            project.pk = None
-            project.save()
+            if project.comment != request.POST.get('project_comment'):
+                project.comment = request.POST.get('project_comment')
+                all_products = project.products.all()
+                project.pk = None
+                project.save()
+                for product in all_products:
+                    project.products.add(product)
+
             content = 'project_detail/%d' % project.id
             return HttpResponse(json.dumps(content), content_type="application/json")
 
@@ -148,13 +153,18 @@ def product_use_rate_get_detail(request):
         # 是否已经有
         project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
         if project:
-            project.comment = request.POST.get('project_comment')
-            project.pk = None
-            project.save()
+            all_products = project.products.all()
+
+            if project.comment != request.POST.get('project_comment'):
+                project.comment = request.POST.get('project_comment')
+                project.pk = None
+                project.save()
+                for product in all_products:
+                    project.products.add(product)
+
             # 需要rate
-            products = project.products.all()
             rates = {}
-            for p in products:
+            for p in all_products:
                 tmp_list = p.rates.split(', ')
                 tmp_list = [float(x) for x in tmp_list]
                 rates[str(p.sheet_name.split(' ')[0])] = sum(tmp_list) / len(tmp_list)
@@ -196,9 +206,14 @@ def product_use_rate_demo(request):
         # 是否已经有
         project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
         if project:
-            project.comment = request.POST.get('project_comment')
-            project.pk = None
-            project.save()
+            if project.comment != request.POST.get('project_comment'):
+                project.comment = request.POST.get('project_comment')
+                all_products = project.products.all()
+                project.pk = None
+                project.save()
+                for product in all_products:
+                    project.products.add(product)
+
             content = {
                 'shape_data': request.POST['shape_data'],
                 'bin_data': request.POST['bin_data'],
