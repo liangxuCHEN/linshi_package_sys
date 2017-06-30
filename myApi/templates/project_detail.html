@@ -77,23 +77,34 @@
             <p>使用数量：{{abin.num_sheet}}, 平均使用率：{{abin.avg_rate}}, 切割线长度：{{abin.cut_linear}}mm</p>
             <p><a href="/{{abin.pic_url}}" target="_blank"> 排版设计图 </a> | <button id="{{ abin.bin_id}}" onclick="sendMes(this)" type="button" class="btn btn-primary btn-xs">统计信息</button>
             </p>
-            <div id="detail_{{ abin.bin_id}"></div>
+            <div id="detail_{{ abin.bin_id}}"></div>
             <hr>
         </div>
         {% endfor %}
         <a href="/project" class="btn btn-default">返回</a>
 </div>
 {% endif %}
-<iframe id="detail" frameborder=0 src="" width="100%" height="600"></iframe>
+
 {% endblock%}
 
 {% block script %}
 <script type="text/javascript" language="javascript">
 
 function sendMes(obj){
+  var place_id = '#detail_' + obj.id;
+
   var percent = $('#percent').val();
-  $('#detail').attr('src', '/product/' + obj.id + '?percent='+ percent);
-  window.location.hash = "#detail";
+  var src_url =  '/product/' + obj.id + '?percent='+ percent;
+  var html_text = '<iframe id="detail" frameborder=0 src="'+ src_url +'" width="100%" height="600"></iframe>'
+  $(place_id).empty()
+  $(place_id).append(html_text);
+  $(place_id).append('<button id="'+obj.id+'" onclick="hidden_page(this)" type="button" class="btn btn-danger btn-xs">收起</button>')
+  //window.location.hash = "#detail";
+}
+
+function hidden_page(obj){
+   var place_id = '#detail_' + obj.id;
+   $(place_id).empty();
 }
 
 </script>

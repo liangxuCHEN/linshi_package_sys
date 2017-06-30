@@ -502,7 +502,7 @@ class PackerSolution(object):
 
         # Add the bins where the rectangles will be placed
         # 添加余料板材尺寸 == 选择可以使用的板材尺寸和数量
-        NUM = 5000
+        NUM = 50000
         for my_pack in list_packer:
             if bins_num is not None:
                 for abin in bins_num:
