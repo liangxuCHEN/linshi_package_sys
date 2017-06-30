@@ -29,6 +29,15 @@ def init_sql_253():
     return conn
 
 
+def get_comment_and_pic(item_id, begin_date, end_date):
+    conn = init_sql_253()
+    sql_text = """SELECT ImgServiceURL, RateContent FROM V_Treasure_Evaluation(nolock)
+    WHERE TreasureID='{item_id}' and RateDate<'{end_date}' and RateDate>'{begin_date}'
+    and ImgServiceURL is not null;""".format(item_id=item_id, begin_date=begin_date, end_date=end_date)
+    df = pd.io.sql.read_sql(sql_text, con=conn)
+    return df.to_json(orient='records')
+
+
 def get_all_comment_to_excel(item_id, file_path):
     conn = init_sql_253()
     sql_text = """
@@ -169,4 +178,5 @@ def main_process(data):
 
 if __name__ == '__main__':
     # get_sentence({"word": u'安装', "t_ids[]": ['37335419863'], "tag": u'差评', 'begin_date': '2017-01-18', 'end_date': '2017-06-01'})
-    get_all_comment('3E0CCDA7-572C-4914-8F40-82A9736FAE20', 'xx')
+    # get_all_comment('3E0CCDA7-572C-4914-8F40-82A9736FAE20', 'xx')
+    pass

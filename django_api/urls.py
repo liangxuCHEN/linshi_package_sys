@@ -22,6 +22,7 @@ urlpatterns = [
     url(r'^predict_sentence/$', views.predict_sentence, name='predict_sentence'),
     url(r'^get_comment_sentence$', views.get_comment_sentence, name='get_comment_sentence'),
     url(r'^get_all_comment', views.get_all_comment, name='get_all_comment'),
+    url(r'^get_comment_and_pic', views.get_comment_and_pic, name='get_comment_and_pic'),
     url(r'^admin/', include(admin.site.urls)),
 ]
 urlpatterns += staticfiles_urlpatterns()

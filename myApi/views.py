@@ -18,7 +18,8 @@ from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_func
 from myApi.my_rectpack_lib.package_script_find_best_piece import get_work_and_calc
 
 from myApi.models import Userate, ProductRateDetail, Project
-from myApi.data_mining_lib.comment_data import main_process as calc_comment, get_sentence, get_all_comment_to_excel
+from myApi.data_mining_lib.comment_data import main_process as calc_comment,\
+    get_sentence, get_all_comment_to_excel, get_comment_and_pic as get_c_p
 from myApi.data_mining_lib.nlp_tools import learn_model, predict_test
 from myApi.tools import handle_uploaded_file
 
@@ -525,6 +526,21 @@ def get_comment_sentence(request):
         response["Access-Control-Max-Age"] = "1000"
         response["Access-Control-Allow-Headers"] = "*"
         return response
+
+
+def get_comment_and_pic(request):
+
+    if request.GET.get('item_id'):
+        result = get_c_p(request.GET.get('item_id'), request.GET.get('b_date'), request.GET.get('e_date'))
+        response = HttpResponse(result, content_type="application/json")
+    else:
+        content = {'IsErr': True}
+        response = HttpResponse(json.dumps(content), content_type="application/json")
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+    response["Access-Control-Max-Age"] = "1000"
+    response["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 def get_all_comment(request):
