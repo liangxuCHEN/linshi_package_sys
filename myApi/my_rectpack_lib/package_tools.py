@@ -1,16 +1,22 @@
 # encoding=utf8
+import os
 import json
+import urllib2
+from urllib import urlencode
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.patches as patches
 import uuid
+import time
 from datetime import datetime as dt
 
 from package import PackerSolution
 import single_use_rate
 from myApi import my_settings
-from package_script_find_best_piece import Mssql
+from django_api import settings
+from package_script_find_best_piece import Mssql, log_init
+from myApi.models import Project, ProductRateDetail
 
 EMPTY_BORDER = 5
 SIDE_CUT = 10  # 板材的切边宽带
@@ -496,31 +502,39 @@ def find_best_piece(input_data):
 def package_data_check(input_data):
     # 数据库连接-检查数据库
     try:
-        parm = json.dumps({
+        parm = {
             'comment': input_data['project_comment'],
             'shape_data': input_data['shape_data'],
             'bin_data': input_data['bin_data'],
+        }
+
+        other = json.dumps({
+            'border': input_data['border']
         })
         user = input_data['userName']
     except Exception as e:
-        update_mix_status_error(status=u'缺少参数')
+        update_mix_status(status=u'缺少参数')
         return {'error': True, 'info': u'缺少参数'}
 
     # 是否有重复
     conn = Mssql()
-    sql_text = "SELECT Guid, CreateUser FROM T_BOM_PlateUtilMixedState WHERE Parm='{parm}'".format(parm=parm)
+    sql_text = """SELECT Guid, CreateUser FROM T_BOM_PlateUtilMixedState WHERE
+    Comment='{comment}' and  ShapeData='{shape_data}' and BinData='{bin_data}' and Paramets='{other}'""".format(
+        comment=parm['comment'], shape_data=parm['shape_data'],
+        bin_data=parm['bin_data'], other=other)
     res = conn.exec_query(sql_text)
     row_id = None
     if res:
         if res[0][1] == user:
             # 更新-更新时间
             update_mix_status_time(res[0][0])
+            row_id = res[0][0]
         else:
             # 新任务
-            row_id = insert_mix_status(parm, user)
+            row_id = insert_mix_status(parm, user, other)
     else:
         # 新任务
-        row_id = insert_mix_status(parm, user)
+        row_id = insert_mix_status(parm, user, other)
 
     return {'error': False, 'row_id': row_id}
 
@@ -533,7 +547,7 @@ def update_mix_status_time(guid):
     conn.exec_non_query(sql_text)
 
 
-def update_mix_status_result(guid, url, comment):
+def update_mix_status_result(guid, url):
     update_time = dt.today()
     conn = Mssql()
     sql_text = """UPDATE T_BOM_PlateUtilMixedState SET
@@ -541,33 +555,8 @@ def update_mix_status_result(guid, url, comment):
         guid=guid, status=u'运算结束', url=url, update_time=update_time.strftime('%Y-%m-%d %H:%M:%S'))
     conn.exec_non_query(sql_text)
 
-    # 更新明细
-    comments = json.loads(comment)
-    # 整理数据
-    insert_data = list()
-    for data in comments:
-        # print data['SeriesVersion']
-        # print type(data['SeriesVersion'])
-        # if data['SeriesVersion'] is None:
-        #     print 'change'
-        #     s_v = 'none'
-        # else:
-        #     s_v = data['SeriesVersion']
-        insert_data.append((
-            guid,
-            data['Series'],
-            data['SkuCode'],
-            data['ItemName'],
-            data['SkuName'],
-            data['SeriesVersion'],
-            data['BOMVersion'],
-            data['Amount']
-        ))
-    sql_text = "insert into T_BOM_PlateUtilMixedDetail values (%s,%s,%s,%s,%s,%s,%s,%s)"
-    conn.exec_many_query(sql_text, insert_data)
 
-
-def update_mix_status_error(guid=None, status=None):
+def update_mix_status(guid=None, status=None):
     if not guid:
         guid = uuid.uuid1()
     if not status:
@@ -580,13 +569,94 @@ def update_mix_status_error(guid=None, status=None):
     conn.exec_non_query(sql_text)
 
 
-def insert_mix_status(paramets, user_name):
+def insert_mix_status(paramets, user_name, other):
     created = dt.today()
     conn = Mssql()
     row_id = uuid.uuid1()
-    sql_text = "insert into T_BOM_PlateUtilMixedState values ('%s','%s','%s','%s','%s','%s','%s')" % (
-        row_id, u'运行中', ' ', paramets, user_name,
-        created.strftime('%Y-%m-%d %H:%M:%S'), created.strftime('%Y-%m-%d %H:%M:%S'))
+    sql_text = "insert into T_BOM_PlateUtilMixedState values ('%s','%s','%s','%s','%s','%s','%s', '%s', '%s', '%s')" % (
+        row_id, u'新任务', ' ', paramets['comment'], user_name,
+        created.strftime('%Y-%m-%d %H:%M:%S'), created.strftime('%Y-%m-%d %H:%M:%S'),
+        paramets['shape_data'], paramets['bin_data'], other)
     conn.exec_non_query(sql_text)
+
+    # 更新明细
+    comments = json.loads(paramets['comment'])
+    # 整理数据
+    insert_data = list()
+    for data in comments:
+        insert_data.append((
+            row_id,
+            data['Series'],
+            data['SkuCode'],
+            data['ItemName'],
+            data['SkuName'],
+            data['SeriesVersion'],
+            data['BOMVersion'],
+            data['Amount']
+        ))
+    sql_text = "insert into T_BOM_PlateUtilMixedDetail values (%s,%s,%s,%s,%s,%s,%s,%s)"
+    conn.exec_many_query(sql_text, insert_data)
     return row_id
+
+
+def run_product_rate_task(input_data, guid):
+    created = dt.today()
+    log = log_init(('mix_rate%s.log' % created.strftime('%Y_%m_%d')))
+    log.info('read the db...')
+    update_mix_status(guid=guid, status=u'计算中')
+    yield '<p>Working on the job guid=%s </p>' % guid
+    log.info('Working on the job guid=%s ' % guid)
+
+    file_name = str(time.time()).split('.')[0]
+    path = os.path.join(settings.BASE_DIR, 'static')
+    file_name = os.path.join(path, file_name)
+    results = package_main_function(input_data, file_name)
+    if results['error']:
+        log.info('has some error during the work')
+        yield '<p>has some error during the work</p>'
+        update_mix_status(guid=guid, status=results['info'])
+    else:
+        try:
+            log.info('create a project...')
+            yield '<p>create a project...</p>'
+            # post url
+            # project_id, url = http_post_create_project(results, input_data, file_name, log)
+            project = Project(
+                comment=input_data['project_comment'],
+                data_input=input_data['shape_data'] + input_data['bin_data']
+            )
+            project.save()
+            # save product
+            for res in results['statistics_data']:
+                product = ProductRateDetail(
+                    sheet_name=res['name'],
+                    num_sheet=res['num_sheet'],
+                    avg_rate=res['rate'],
+                    rates=res['rates'],
+                    detail=res['detail'],
+                    num_shape=res['num_shape'],
+                    sheet_num_shape=res['sheet_num_shape'],
+                    pic_url='static/%s%s.png' % (file_name, res['bin_type']),
+                    same_bin_list=res['same_bin_list'],
+                    empty_sections=res['empty_sections'],
+                    algorithm=res['algo_id'],
+                    empty_section_ares=res['empty_section_ares'],
+                    total_rates=res['total_rates']
+                )
+                product.save()
+                project.products.add(product)
+            project.save()
+            yield '<p>project save ...</p>'
+            url_res = 'http://119.145.166.182:8090/project_detail/%d' % project.id,
+            # 更新数据库
+            update_mix_status_result(guid, url_res[0])
+            yield '<p>finish the job...</p>'
+        except:
+            log.info('can not create a project...')
+            yield '<p>can not create a project...</p>'
+            update_mix_status(guid=guid, status=u'保存结果出错')
+
+
+if __name__ == '__main__':
+    run_product_rate_task()
 

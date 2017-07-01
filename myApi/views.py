@@ -15,7 +15,7 @@ from django.views import generic
 from myApi.forms import AlgoForm, LearnCommentForm, PredictForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
 from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function, find_best_piece,\
-    package_data_check, update_mix_status_result, update_mix_status_error
+    package_data_check, update_mix_status_result, update_mix_status, run_product_rate_task
 from myApi.my_rectpack_lib.package_script_find_best_piece import get_work_and_calc
 
 from myApi.models import Userate, ProductRateDetail, Project
@@ -115,7 +115,7 @@ def single_use_rate_demo(request):
 @csrf_exempt
 def product_use_rate(request):
     if request.method == 'POST':
-        # TODO 数据检查
+        # T数据检查
         res_check = package_data_check(request.POST)
         if res_check['error']:
             # 出错退出
@@ -137,26 +137,12 @@ def product_use_rate(request):
 
             content = 'http://119.145.166.182:8090/project_detail/%d' % project.id
             # 更新数据库
-            update_mix_status_result(res_check['row_id'], content, request.POST.get('project_comment'))
+            update_mix_status_result(res_check['row_id'], content)
             return HttpResponse(json.dumps(content), content_type="application/json")
 
-        filename = str(time.time()).split('.')[0]
-        path = os.path.join(settings.BASE_DIR, 'static')
-        path = os.path.join(path, filename)
-        results = package_main_function(request.POST, pathname=path)
-        if results['error']:
-            update_mix_status_error(guid=res_check['row_id'], status=results['info'])
-            return HttpResponse(json.dumps(results), content_type="application/json")
-        else:
-            try:
-                project_id = create_project(results, request.POST, filename)
-            except:
-                project_id = None
-
-            content = 'http://119.145.166.182:8090/project_detail/%d' % project_id
-            # 更新数据库
-            update_mix_status_result(res_check['row_id'], content, request.POST.get('project_comment'))
-            return HttpResponse(json.dumps(content), content_type="application/json")
+        # TODO：后面改成脚本
+        resp = StreamingHttpResponse(run_product_rate_task(request.POST, res_check['row_id']))
+        return resp
 
     else:
         return render(request, 'product_use_rate.html')
