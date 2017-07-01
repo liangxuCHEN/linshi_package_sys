@@ -747,6 +747,16 @@ def run_product_rate_func(num_piece, shape_data, bin_data, comment):
     project = Project.objects.filter(data_input=s_data + b_data).last()
     if project:
         all_products = project.products.all()
+
+        # 添加最优生产数量
+        try:
+            comment = json.loads(comment)
+            comment['Amount'] = num_piece
+            comment = json.dumps(comment, ensure_ascii=False)
+        except:
+            if type(comment) == type('string'):
+                comment += ' 最优利用率推荐生产数量=%d' % num_piece
+
         if project.comment != comment:
             project.comment = comment
             project.pk = None
