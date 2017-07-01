@@ -305,11 +305,13 @@ def update_ending_work(data):
 def update_result(data):
     update_ending_work(data)
     conn = Mssql()
-    # 先看是否存在, 存在就删除原来数据
-    sql_text = "delete T_BOM_PlateUtilUsedRate where BOMVersion='%s'" % data['BOMVersion']
-    conn.exec_non_query(sql_text)
-    sql_text = "insert into T_BOM_PlateUtilUsedRate values (%s, %s, %s, %s)"
-    conn.exec_many_query(sql_text, data['rates'])
+
+    if 'rates' in data.keys():
+        # 先看是否存在, 存在就删除原来数据
+        sql_text = "delete T_BOM_PlateUtilUsedRate where BOMVersion='%s'" % data['BOMVersion']
+        conn.exec_non_query(sql_text)
+        sql_text = "insert into T_BOM_PlateUtilUsedRate values (%s, %s, %s, %s)"
+        conn.exec_many_query(sql_text, data['rates'])
 
 
 def main_process():
@@ -328,7 +330,7 @@ def main_process():
         if error:
             content_2['status'] = u'计算出错'
             update_result(content_2)
-            log.error('work BOMVersion=%d has error in input data ' % input_data['BOMVersion'])
+            log.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
             # 如果出错发送邮件通知
             body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
             send_mail_process(body)
@@ -371,7 +373,7 @@ def get_work_and_calc(post_data):
             if error:
                 content_2['status'] = u'计算出错'
                 update_result(content_2)
-                log.error('work BOMVersion=%d has error in input data ' % input_data['BOMVersion'])
+                log.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
                 yield u'<p>运行出错，输入数据有误</p>'
                 # 如果出错发送邮件通知
                 body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
