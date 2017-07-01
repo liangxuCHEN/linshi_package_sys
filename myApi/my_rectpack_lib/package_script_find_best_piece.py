@@ -380,8 +380,16 @@ def get_work_and_calc(post_data):
                 log.info('finish work BOMVersion=%s and begin to draw the solution' % input_data['BOMVersion'])
                 # 访问API
                 # TODO:换成函数
-                http_response, rates, status = run_product_rate_func(result['piece'], input_data['ShapeData'],
-                                                             input_data['BinData'], comment=input_data['Product'])
+                try:
+                    http_response, rates, status = run_product_rate_func(result['piece'], input_data['ShapeData'],
+                                                                 input_data['BinData'], comment=input_data['Product'])
+                except Exception as e:
+                    log.error('error:',e)
+                    content_2['status'] = u'计算出错'
+                    update_result(content_2)
+                    yield u'<p>计算BOMVersion:%s 出错</p>' % input_data['BOMVersion']
+                    continue
+
                 result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
                 content_2['status'] = status
                 content_2['url'] = result['url']
