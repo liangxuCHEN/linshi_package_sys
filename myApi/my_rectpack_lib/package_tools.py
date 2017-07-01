@@ -4,14 +4,17 @@ import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.patches as patches
+import uuid
+from datetime import datetime as dt
 
 from package import PackerSolution
 import single_use_rate
 from myApi import my_settings
+from package_script_find_best_piece import Mssql
 
 EMPTY_BORDER = 5
 SIDE_CUT = 10  # 板材的切边宽带
-EFFECTIVE_RATE = 0.5    # 余料的有效率
+EFFECTIVE_RATE = 0.5  # 余料的有效率
 
 
 def use_rate(use_place, width, height, side_cut=SIDE_CUT):
@@ -19,7 +22,7 @@ def use_rate(use_place, width, height, side_cut=SIDE_CUT):
     for b_x, b_y, w, h in use_place:
         total_use += w * h
     return int(
-        float(total_use)/(width*height+(width+height)*side_cut - side_cut*side_cut) * 10000)/10000.0
+        float(total_use) / (width * height + (width + height) * side_cut - side_cut * side_cut) * 10000) / 10000.0
 
 
 def empty_ares(empty_section):
@@ -161,8 +164,8 @@ def draw_one_pic(positions, rates, width=None, height=None, path=None, border=0,
         # 单个图表
         num_list = [1]
 
-    i_p = 0     # 记录板材索引
-    i_pic = 1   # 记录图片的索引
+    i_p = 0  # 记录板材索引
+    i_pic = 1  # 记录图片的索引
     num = len(del_same_data(num_list, num_list))
     fig_height = num * 4
     fig1 = Figure(figsize=(8, fig_height))
@@ -243,7 +246,7 @@ def draw_one_pic(positions, rates, width=None, height=None, path=None, border=0,
 def find_the_same_position(positions):
     # 初始化，默认每个都不一样，数量都是1
     num_list = [1] * len(positions)
-    for i in range(len(positions)-1, 0, -1):
+    for i in range(len(positions) - 1, 0, -1):
         for j in range(0, i):
             if positions[i] == positions[j] and num_list[j] != 0:
                 num_list[i] += 1
@@ -275,8 +278,8 @@ def detail_text(shape_list, situation_list, num_list):
                 # 统计每块板有多少个shape一样的图形
                 count = 0
                 for position in situation:
-                        if shape == (position[2], position[3]) or shape == (position[3], position[2]):
-                            count += 1
+                    if shape == (position[2], position[3]) or shape == (position[3], position[2]):
+                        count += 1
 
                 data_dict['num_list'].append(count)
             id_situation += 1
@@ -341,8 +344,8 @@ def package_main_function(input_data, pathname):
     min_size = None
     min_height = None
     min_width = None
-    cut_linear_p = 30       # 切割线重要系数
-    empty_section_p = 70    # 余料重要系数
+    cut_linear_p = 30  # 切割线重要系数
+    empty_section_p = 70  # 余料重要系数
     if 'bins_num' in input_data.keys():
         if input_data['bins_num'] != '':
             bins_num = input_data['bins_num']
@@ -351,8 +354,8 @@ def package_main_function(input_data, pathname):
             min_width = int(input_data['min_width'])
 
     if 'use_rate_p' in input_data.keys():
-            cut_linear_p = int(input_data['cut_linear_p'])
-            empty_section_p = int(input_data['empty_section_p'])
+        cut_linear_p = int(input_data['cut_linear_p'])
+        empty_section_p = int(input_data['empty_section_p'])
 
     if 'effective_rate' in input_data.keys():
         effective_rate = float(input_data['empty_section_p'])
@@ -389,9 +392,9 @@ def package_main_function(input_data, pathname):
             name = packer.get_bin_data(data['bin_key'], key='name')
 
             # 计算总利用率 = 余料使用率/2 + 组件利用率 ，余料面积的1/2 有效余料
-            rate_list = list()          # 组件使用率
-            total_rate_list = list()    # 总利用率
-            empty_ares_list = list()    # 余料面积
+            rate_list = list()  # 组件使用率
+            total_rate_list = list()  # 总利用率
+            empty_ares_list = list()  # 余料面积
             for s_id in range(0, len(best_solution)):
                 r = use_rate(best_solution[s_id], bins_list[s_id][0], bins_list[s_id][1])
                 empty_r = use_rate(empty_sections[s_id], bins_list[s_id][0], bins_list[s_id][1])
@@ -419,7 +422,7 @@ def package_main_function(input_data, pathname):
                 'sheet_num_shape': str([len(s) for s in best_solution])[1:-1],
                 'rates': str(rate_list)[1:-1],
                 'sheet': name,
-                'name':  data['bin_key'] + ' ' + name + u' 切割线(mm):%s' % str(data['cut_linear']),
+                'name': data['bin_key'] + ' ' + name + u' 切割线(mm):%s' % str(data['cut_linear']),
                 'bin_type': data['bin_key'],
                 'pic_url': pathname + data['bin_key'] + '.png',
                 'empty_sections': detail_empty_sections(
@@ -470,7 +473,7 @@ def find_best_piece(input_data):
                 best_pic = num_pic
                 best_rates = [(data['bin_key'], data['rate']) for data in res]
 
-            if num_pic > my_settings.NUM_SAVE :
+            if num_pic > my_settings.NUM_SAVE:
                 rate_res.append(tmp_avg_rate)
                 np_arr = np.array(rate_res[-1 * my_settings.NUM_SAVE:])
                 var_rate = np_arr.var()
@@ -488,3 +491,102 @@ def find_best_piece(input_data):
             return {'error': True, 'info': packer.error_info()}
 
         num_pic += 1
+
+
+def package_data_check(input_data):
+    # 数据库连接-检查数据库
+    try:
+        parm = json.dumps({
+            'comment': input_data['project_comment'],
+            'shape_data': input_data['shape_data'],
+            'bin_data': input_data['bin_data'],
+        })
+        user = input_data['userName']
+    except Exception as e:
+        update_mix_status_error(status=u'缺少参数')
+        return {'error': True, 'info': u'缺少参数'}
+
+    # 是否有重复
+    conn = Mssql()
+    sql_text = "SELECT Guid, CreateUser FROM T_BOM_PlateUtilMixedState WHERE Parm='{parm}'".format(parm=parm)
+    res = conn.exec_query(sql_text)
+    row_id = None
+    if res:
+        if res[0][1] == user:
+            # 更新-更新时间
+            update_mix_status_time(res[0][0])
+        else:
+            # 新任务
+            row_id = insert_mix_status(parm, user)
+    else:
+        # 新任务
+        row_id = insert_mix_status(parm, user)
+
+    return {'error': False, 'row_id': row_id}
+
+
+def update_mix_status_time(guid):
+    update_time = dt.today()
+    conn = Mssql()
+    sql_text = "UPDATE T_BOM_PlateUtilMixedState SET UpdateDate='{update_time}' WHERE Guid='{guid}'".format(
+        guid=guid, update_time=update_time.strftime('%Y-%m-%d %H:%M:%S'))
+    conn.exec_non_query(sql_text)
+
+
+def update_mix_status_result(guid, url, comment):
+    update_time = dt.today()
+    conn = Mssql()
+    sql_text = """UPDATE T_BOM_PlateUtilMixedState SET
+    UpdateDate='{update_time}', Url='{url}', Status='{status}' WHERE Guid='{guid}'""".format(
+        guid=guid, status=u'运算结束', url=url, update_time=update_time.strftime('%Y-%m-%d %H:%M:%S'))
+    conn.exec_non_query(sql_text)
+
+    # 更新明细
+    comments = json.loads(comment)
+    # 整理数据
+    insert_data = list()
+    for data in comments:
+        # print data['SeriesVersion']
+        # print type(data['SeriesVersion'])
+        # if data['SeriesVersion'] is None:
+        #     print 'change'
+        #     s_v = 'none'
+        # else:
+        #     s_v = data['SeriesVersion']
+        insert_data.append((
+            guid,
+            data['Series'],
+            data['SkuCode'],
+            data['ItemName'],
+            data['SkuName'],
+            data['SeriesVersion'],
+            data['BOMVersion'],
+            data['Amount']
+        ))
+    sql_text = "insert into T_BOM_PlateUtilMixedDetail values (%s,%s,%s,%s,%s,%s,%s,%s)"
+    conn.exec_many_query(sql_text, insert_data)
+
+
+def update_mix_status_error(guid=None, status=None):
+    if not guid:
+        guid = uuid.uuid1()
+    if not status:
+        status = u'运行出错'
+    update_time = dt.today()
+    conn = Mssql()
+    sql_text = """UPDATE T_BOM_PlateUtilMixedState
+    SET UpdateDate='{update_time}', Status='{status}' WHERE Guid='{guid}'""".format(
+        guid=guid, status=status, update_time=update_time.strftime('%Y-%m-%d %H:%M:%S'))
+    conn.exec_non_query(sql_text)
+
+
+def insert_mix_status(paramets, user_name):
+    created = dt.today()
+    conn = Mssql()
+    row_id = uuid.uuid1()
+    sql_text = "insert into T_BOM_PlateUtilMixedState values ('%s','%s','%s','%s','%s','%s','%s')" % (
+        row_id, u'运行中', ' ', paramets, user_name,
+        created.strftime('%Y-%m-%d %H:%M:%S'), created.strftime('%Y-%m-%d %H:%M:%S'))
+    conn.exec_non_query(sql_text)
+    return row_id
+

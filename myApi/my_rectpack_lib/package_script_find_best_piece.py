@@ -59,6 +59,7 @@ class Mssql:
             cur.executemany(sql, param)
             self.conn.commit()
         except Exception as e:
+            print e
             self.conn.rollback()
 
         self.conn.close()
@@ -164,8 +165,10 @@ def http_post(num_piece, shape_data, bin_data, comment=None):
             comment['Amount'] = num_piece
             comment = json.dumps(comment, ensure_ascii=False)
         except:
-            comment += ' 最优利用率推荐生产数量=%d' % num_piece
-
+            if type(comment) == type('string'):
+                comment += ' 最优利用率推荐生产数量=%d' % num_piece
+            else:
+                comment = json.dumps(comment, ensure_ascii=False)
     else:
         comment = '最优利用率推荐生产数量=%d' % num_piece
     values = {
@@ -474,7 +477,64 @@ def get_work_and_calc(post_data):
 
         log.info('-------------------All works has done----------------------------')
 
+
+def http_post_test(num_piece, shape_data, bin_data, comment=None):
+    url = my_settings.URL_POST
+    # 整理input data
+    s_data, b_data = multi_piece(num_piece, shape_data, bin_data)
+    # 整理描述
+    if comment:
+        try:
+            comment = json.loads(comment)
+            comment['Amount'] = num_piece
+            comment = json.dumps(comment, ensure_ascii=False)
+        except:
+            if type(comment) == type('string'):
+                comment += ' 最优利用率推荐生产数量=%d' % num_piece
+            else:
+                comment = json.dumps(comment, ensure_ascii=False)
+    else:
+        comment = '最优利用率推荐生产数量=%d' % num_piece
+    values = {
+        'project_comment': comment.encode('utf8'),
+        'border': 5,
+        'shape_data': s_data,
+        'bin_data': b_data,
+        'userName': 'Test'
+    }
+    data = urlencode(values)
+    req = urllib2.Request(url, data)  # 生成页面请求的完整数据
+    response = None
+    try:
+        response = urllib2.urlopen(req)  # 发送页面请求
+        result = json.loads(response.read())
+    except urllib2.URLError as e:
+        code = ''
+        reason = ''
+        if hasattr(e, 'code'):
+            log.error('there is error in http post,error code:%d' % e.code)
+            code = e.code
+        if hasattr(e, 'reason'):
+            log.error('there is error in http post,error reason:%s' % e.reason)
+            reason = e.reason
+
+        # 如果出错发送邮件通知
+        body = '<p>运行 package_script_find_best_piece.py 出错，不能post到服务器生产具体方案</p>'
+        body += '<p>http respose code:%s, reason: %s</p>' % (str(code), reason)
+        send_mail_process(body)
+    finally:
+        if result:
+            response.close()
+
+    return result['url'], result['rates']
+
 if __name__ == '__main__':
-    main_process()
+    pic = 3
+    shape_data = u'[{"SkuCode":"32050093","Length":594.0,"Width":475.0,"Amount":2},{"SkuCode":"32050038","Length":596.0,"Width":475.0,"Amount":2},{"SkuCode":"32050093","Length":463.0,"Width":320.0,"Amount":2},{"SkuCode":"32050076","Length":581.0,"Width":471.0,"Amount":4},{"SkuCode":"32050051","Length":1188.0,"Width":296.0,"Amount":2},{"SkuCode":"32050093","Length":320.0,"Width":168.0,"Amount":3},{"SkuCode":"32050093","Length":1910.0,"Width":236.0,"Amount":1},{"SkuCode":"32050093","Length":1910.0,"Width":168.0,"Amount":1},{"SkuCode":"32050051","Length":1910.0,"Width":342.0,"Amount":1},{"SkuCode":"32050093","Length":573.0,"Width":342.0,"Amount":3},{"SkuCode":"32050093","Length":1910.0,"Width":360.0,"Amount":1},{"SkuCode":"32050093","Length":1910.0,"Width":296.0,"Amount":1},{"SkuCode":"32050434","Length":1900.0,"Width":600.0,"Amount":2},{"SkuCode":"32050051","Length":1910.0,"Width":396.0,"Amount":1},{"SkuCode":"32050051","Length":1910.0,"Width":128.0,"Amount":1},{"SkuCode":"32050093","Length":1142.0,"Width":60.0,"Amount":2},{"SkuCode":"32050038","Length":1160.0,"Width":539.0,"Amount":2}]'
+
+    bin_data = u'[{"SkuCode":"32050038","ItemName":"三聚氰胺板-双面仿古白哑光单保(18mm)","SkuName":"2440*1220*18mm","HasGrain":"否"},{"SkuCode":"32050076","ItemName":"三聚氰胺板-双面仿古白哑光(5mm)","SkuName":"2440*1220*5mm","HasGrain":"否"},{"SkuCode":"32050051","ItemName":"三聚氰胺板-双面仿古白哑光(25mm)","SkuName":"2440*1220*25mm","HasGrain":"否"},{"SkuCode":"32050434","ItemName":"三聚氰胺板-2#8834双面仿橡胶木哑光(12mm)","SkuName":"2440*1220*12mm","HasGrain":"是"}]'
+    project_comment = '[{"Series":"DR系列","SkuCode":"LS02YMDR1Q001","ItemName":"衣帽架","SkuName":"380*380*1500mm ","SeriesVersion":null,"BOMVersion":"A01","Guid":"d36e2f00-418d-4a03-874d-de7b06cd4786","IsAudit":4,"Amount":150},{"Series":"DR系列","SkuCode":"LS02SYDR1S001","ItemName":"DR1S书椅","SkuName":"380*462*860mm","SeriesVersion":null,"BOMVersion":"A01","Guid":"aac91db7-2f1d-4835-a2a9-0ed2da1e0923","IsAudit":4,"Amount":200},{"Series":"DR系列","SkuCode":"LS02DDDR1E001","ItemName":"DR1E四斗柜","SkuName":"600*398*825mm","SeriesVersion":null,"BOMVersion":"A01","Guid":"2a4e6ad0-cb9c-467d-872c-0971f7f19acd","IsAudit":4,"Amount":11}]'
+
+    # http_post_test(pic, shape_data, bin_data, comment=project_comment)
 
 

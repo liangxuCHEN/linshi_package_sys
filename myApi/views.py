@@ -14,7 +14,8 @@ from django.views import generic
 
 from myApi.forms import AlgoForm, LearnCommentForm, PredictForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
-from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function, find_best_piece
+from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function, find_best_piece,\
+    package_data_check, update_mix_status_result, update_mix_status_error
 from myApi.my_rectpack_lib.package_script_find_best_piece import get_work_and_calc
 
 from myApi.models import Userate, ProductRateDetail, Project
@@ -114,7 +115,16 @@ def single_use_rate_demo(request):
 @csrf_exempt
 def product_use_rate(request):
     if request.method == 'POST':
-        # 是否已经有
+        # TODO 数据检查
+        res_check = package_data_check(request.POST)
+        if res_check['error']:
+            # 出错退出
+            return HttpResponse(json.dumps(res_check), content_type="application/json")
+        elif not res_check['row_id']:
+            # 所有条件相同直接退出
+            return HttpResponse(json.dumps(res_check), content_type="application/json")
+
+        # 是否参数相同
         project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
         if project:
             if project.comment != request.POST.get('project_comment'):
@@ -125,7 +135,9 @@ def product_use_rate(request):
                 for product in all_products:
                     project.products.add(product)
 
-            content = 'project_detail/%d' % project.id
+            content = 'http://119.145.166.182:8090/project_detail/%d' % project.id
+            # 更新数据库
+            update_mix_status_result(res_check['row_id'], content, request.POST.get('project_comment'))
             return HttpResponse(json.dumps(content), content_type="application/json")
 
         filename = str(time.time()).split('.')[0]
@@ -133,6 +145,7 @@ def product_use_rate(request):
         path = os.path.join(path, filename)
         results = package_main_function(request.POST, pathname=path)
         if results['error']:
+            update_mix_status_error(guid=res_check['row_id'], status=results['info'])
             return HttpResponse(json.dumps(results), content_type="application/json")
         else:
             try:
@@ -140,7 +153,9 @@ def product_use_rate(request):
             except:
                 project_id = None
 
-            content = 'project_detail/%d' % project_id
+            content = 'http://119.145.166.182:8090/project_detail/%d' % project_id
+            # 更新数据库
+            update_mix_status_result(res_check['row_id'], content, request.POST.get('project_comment'))
             return HttpResponse(json.dumps(content), content_type="application/json")
 
     else:
