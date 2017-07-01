@@ -1,87 +1,15 @@
 # encoding=utf8
 import sys
 # sys.path.append("/home/django/linshi_package_sys/")
-import os
 from datetime import datetime as dt
 import json
-import pymssql
-import logging
 import urllib2
 from urllib import urlencode
 import numpy as np
 from package import PackerSolution
 from myApi import my_settings
-from django_api import settings
 from myApi.tools import send_mail
-
-
-class Mssql:
-    def __init__(self):
-        self.host = my_settings.BOM_HOST
-        self.user = my_settings.BOM_HOST_USER
-        self.pwd = my_settings.BOM_HOST_PASSWORD
-        self.db = my_settings.BOM_DB
-
-    def __get_connect(self):
-        if not self.db:
-            raise (NameError, "do not have db information")
-        self.conn = pymssql.connect(
-            host=self.host,
-            user=self.user,
-            password=self.pwd,
-            database=self.db,
-            charset="utf8"
-        )
-        cur = self.conn.cursor()
-        if not cur:
-            raise (NameError, "Have some Error")
-        else:
-            return cur
-
-    def exec_query(self, sql):
-        cur = self.__get_connect()
-        cur.execute(sql)
-        res_list = cur.fetchall()
-
-        # the db object must be closed
-        self.conn.close()
-        return res_list
-
-    def exec_non_query(self, sql):
-        cur = self.__get_connect()
-        cur.execute(sql)
-        self.conn.commit()
-        self.conn.close()
-
-    def exec_many_query(self, sql, param):
-        cur = self.__get_connect()
-        try:
-            cur.executemany(sql, param)
-            self.conn.commit()
-        except Exception as e:
-            print e
-            self.conn.rollback()
-
-        self.conn.close()
-
-
-def log_init(file_name):
-    """
-    logging.debug('This is debug message')
-    logging.info('This is info message')
-    logging.warning('This is warning message')
-    """
-    path = os.path.join(settings.BASE_DIR, 'static')
-    path = os.path.join(path, 'log')
-    file_name = os.path.join(path, file_name)
-
-    level = logging.DEBUG
-    logging.basicConfig(level=level,
-                        format='%(asctime)s [line:%(lineno)d] %(levelname)s %(message)s',
-                        datefmt='%a, %d %b %Y %H:%M:%S',
-                        filename=file_name,
-                        filemode='a+')
-    return logging
+from package_tools import Mssql, log_init, run_product_rate_func, multi_piece
 
 
 def get_data():
@@ -208,16 +136,6 @@ def send_mail_process(body):
     # 如果出错发送邮件通知
     mail_to = 'chenliangxu68@163.com'
     send_mail(mail_to, u"林氏利用率API邮件提醒", body)
-
-
-def multi_piece(num_piece, shape_data, bin_data):
-    shape_data = shape_data.encode('utf-8')
-    bin_data = bin_data.encode('utf-8')
-    shape_data = json.loads(shape_data)
-    for shape in shape_data:
-        shape['Amount'] = shape['Amount'] * num_piece
-    shape_data = json.dumps(shape_data)
-    return shape_data, bin_data
 
 
 def generate_work(input_data):
@@ -417,7 +335,7 @@ def main_process():
         else:
             log.info('finish work BOMVersion=%s and begin to draw the solution' % input_data['BOMVersion'])
             # 访问API
-            http_response, rates = http_post(result['piece'], input_data['ShapeData'],
+            http_response, rates = run_product_rate_func(result['piece'], input_data['ShapeData'],
                                              input_data['BinData'], comment=input_data['Product'])
             result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
             content_2['status'] = u'运算结束'
@@ -461,77 +379,30 @@ def get_work_and_calc(post_data):
             else:
                 log.info('finish work BOMVersion=%s and begin to draw the solution' % input_data['BOMVersion'])
                 # 访问API
-                http_response, rates = http_post(result['piece'], input_data['ShapeData'],
-                                                 input_data['BinData'], comment=input_data['Product'])
+                # TODO:换成函数
+                http_response, rates, status = run_product_rate_func(result['piece'], input_data['ShapeData'],
+                                                             input_data['BinData'], comment=input_data['Product'])
                 result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
-                content_2['status'] = u'运算结束'
+                content_2['status'] = status
                 content_2['url'] = result['url']
                 content_2['rates'] = list()
+                if content_2['status'] == u'运算结束':
+                    for skucode, rate in rates.items():
+                        content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
 
-                for skucode, rate in rates.items():
-                    content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
-
-                # 更新数据结果
-                update_result(content_2)
-                yield u'<p>计算BOMVersion:%s 结束，更新数据</p>' % input_data['BOMVersion']
+                    # 更新数据结果
+                    update_result(content_2)
+                    log.info('finish draw solution BOMVersion=%s' % input_data['BOMVersion'])
+                    yield u'<p>计算BOMVersion:%s 结束，更新数据</p>' % input_data['BOMVersion']
+                else:
+                    log.info('error in draw solution BOMVersion=%s' % input_data['BOMVersion'])
+                    yield u'<p>BOMVersion=%s 画图出错, %s</p>' % (input_data['BOMVersion'], content_2['status'])
 
         log.info('-------------------All works has done----------------------------')
 
 
-def http_post_test(num_piece, shape_data, bin_data, comment=None):
-    url = my_settings.URL_POST_NEW
-    # 整理input data
-    s_data, b_data = multi_piece(num_piece, shape_data, bin_data)
-    # 整理描述
-    if comment:
-        try:
-            comment = json.loads(comment)
-            comment['Amount'] = num_piece
-            comment = json.dumps(comment, ensure_ascii=False)
-        except:
-            if type(comment) == type('string'):
-                comment += ' 最优利用率推荐生产数量=%d' % num_piece
-            else:
-                comment = json.dumps(comment, ensure_ascii=False)
-    else:
-        comment = '最优利用率推荐生产数量=%d' % num_piece
-    values = {
-        'project_comment': comment.encode('utf8'),
-        'border': 5,
-        'shape_data': s_data,
-        'bin_data': b_data,
-        'userName': 'Test'
-    }
-    data = urlencode(values)
-    req = urllib2.Request(url, data)  # 生成页面请求的完整数据
-    response = None
-    try:
-        response = urllib2.urlopen(req)  # 发送页面请求
-        text = response.read()
-        return text
-    except urllib2.URLError as e:
-        code = ''
-        reason = ''
-        if hasattr(e, 'code'):
-            log.error('there is error in http post,error code:%d' % e.code)
-            code = e.code
-        if hasattr(e, 'reason'):
-            log.error('there is error in http post,error reason:%s' % e.reason)
-            reason = e.reason
-
-        # 如果出错发送邮件通知
-        body = '<p>运行 package_script_find_best_piece.py 出错，不能post到服务器生产具体方案</p>'
-        body += '<p>http respose code:%s, reason: %s</p>' % (str(code), reason)
-        send_mail_process(body)
-
-
 if __name__ == '__main__':
-    pic = 3
-    shape_data = u'[{"SkuCode":"32050038","Length":355.6,"Width":546.5,"Amount":5},{"SkuCode":"32050038","Length":586.0,"Width":475.0,"Amount":2},{"SkuCode":"32050038","Length":463.0,"Width":320.0,"Amount":2},{"SkuCode":"32050076","Length":581.0,"Width":471.0,"Amount":4},{"SkuCode":"32050051","Length":1188.0,"Width":296.0,"Amount":2},{"SkuCode":"32050038","Length":320.0,"Width":168.0,"Amount":3},{"SkuCode":"32050038","Length":1910.0,"Width":236.0,"Amount":1},{"SkuCode":"32050038","Length":1910.0,"Width":168.0,"Amount":1},{"SkuCode":"32050051","Length":1910.0,"Width":342.0,"Amount":1},{"SkuCode":"32050038","Length":573.0,"Width":342.0,"Amount":3},{"SkuCode":"32050038","Length":1910.0,"Width":360.0,"Amount":1},{"SkuCode":"32050038","Length":1910.0,"Width":296.0,"Amount":1},{"SkuCode":"32050434","Length":1900.0,"Width":600.0,"Amount":2},{"SkuCode":"32050051","Length":1910.0,"Width":396.0,"Amount":1},{"SkuCode":"32050051","Length":1910.0,"Width":128.0,"Amount":1},{"SkuCode":"32050038","Length":1142.0,"Width":60.0,"Amount":2},{"SkuCode":"32050038","Length":1160.0,"Width":539.0,"Amount":2}]'
-
-    bin_data = u'[{"SkuCode":"32050038","ItemName":"三聚氰胺板-双面仿古白哑保(18mm)","SkuName":"2440*1220*18mm","HasGrain":"否"},{"SkuCode":"32050076","ItemName":"三聚氰胺板-双面仿古白哑光(5mm)","SkuName":"2440*1220*5mm","HasGrain":"否"},{"SkuCode":"32050051","ItemName":"三聚氰胺板-双面仿古白哑光(25mm)","SkuName":"2440*1220*25mm","HasGrain":"否"},{"SkuCode":"32050434","ItemName":"三聚氰胺板-2#8834双面仿橡胶木哑光(12mm)","SkuName":"2440*1220*12mm","HasGrain":"是"}]'
-    project_comment = '[{"Series":"DR系列","SkuCode":"LS02YMDR1Q001","ItemName":"衣帽架","SkuName":"380*380*1500mm ","SeriesVersion":null,"BOMVersion":"A01","Guid":"d36e2f00-418d-4a03-874d-de7b06cd4786","IsAudit":4,"Amount":150},{"Series":"DR系列","SkuCode":"LS02SYDR1S001","ItemName":"DR1S书椅","SkuName":"380*462*860mm","SeriesVersion":null,"BOMVersion":"A01","Guid":"aac91db7-2f1d-4835-a2a9-0ed2da1e0923","IsAudit":4,"Amount":200},{"Series":"DR系列","SkuCode":"LS02DDDR1E001","ItemName":"DR1E四斗柜","SkuName":"600*398*825mm","SeriesVersion":null,"BOMVersion":"A01","Guid":"2a4e6ad0-cb9c-467d-872c-0971f7f19acd","IsAudit":4,"Amount":11}]'
-
-    http_post_test(pic, shape_data, bin_data, comment=project_comment)
+    # main_process()
+    pass
 
 

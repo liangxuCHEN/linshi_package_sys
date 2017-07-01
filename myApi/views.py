@@ -115,7 +115,7 @@ def single_use_rate_demo(request):
 @csrf_exempt
 def product_use_rate(request):
     if request.method == 'POST':
-        # T数据检查
+        # 数据检查
         res_check = package_data_check(request.POST)
         if res_check['error']:
             # 出错退出
@@ -134,6 +134,8 @@ def product_use_rate(request):
                 project.save()
                 for product in all_products:
                     project.products.add(product)
+
+                project.save()
 
             content = 'http://119.145.166.182:8090/project_detail/%d' % project.id
             # 更新数据库
@@ -162,6 +164,7 @@ def product_use_rate_get_detail(request):
                 project.save()
                 for product in all_products:
                     project.products.add(product)
+                project.save()
 
             # 需要rate
             rates = {}

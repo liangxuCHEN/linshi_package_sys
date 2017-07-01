@@ -1,26 +1,95 @@
 # encoding=utf8
 import os
 import json
+import numpy as np
 import urllib2
 from urllib import urlencode
-import numpy as np
+import pymssql
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.patches as patches
 import uuid
 import time
 from datetime import datetime as dt
-
+import logging
 from package import PackerSolution
 import single_use_rate
 from myApi import my_settings
 from django_api import settings
-from package_script_find_best_piece import Mssql, log_init
 from myApi.models import Project, ProductRateDetail
 
 EMPTY_BORDER = 5
 SIDE_CUT = 10  # 板材的切边宽带
 EFFECTIVE_RATE = 0.5  # 余料的有效率
+
+
+class Mssql:
+    def __init__(self):
+        self.host = my_settings.BOM_HOST
+        self.user = my_settings.BOM_HOST_USER
+        self.pwd = my_settings.BOM_HOST_PASSWORD
+        self.db = my_settings.BOM_DB
+
+    def __get_connect(self):
+        if not self.db:
+            raise (NameError, "do not have db information")
+        self.conn = pymssql.connect(
+            host=self.host,
+            user=self.user,
+            password=self.pwd,
+            database=self.db,
+            charset="utf8"
+        )
+        cur = self.conn.cursor()
+        if not cur:
+            raise (NameError, "Have some Error")
+        else:
+            return cur
+
+    def exec_query(self, sql):
+        cur = self.__get_connect()
+        cur.execute(sql)
+        res_list = cur.fetchall()
+
+        # the db object must be closed
+        self.conn.close()
+        return res_list
+
+    def exec_non_query(self, sql):
+        cur = self.__get_connect()
+        cur.execute(sql)
+        self.conn.commit()
+        self.conn.close()
+
+    def exec_many_query(self, sql, param):
+        cur = self.__get_connect()
+        try:
+            cur.executemany(sql, param)
+            self.conn.commit()
+        except Exception as e:
+            print e
+            self.conn.rollback()
+
+        self.conn.close()
+
+
+def log_init(file_name):
+    """
+    logging.debug('This is debug message')
+    logging.info('This is info message')
+    logging.warning('This is warning message')
+    """
+    path = os.path.join(settings.BASE_DIR, 'static')
+    path = os.path.join(path, 'log')
+    file_name = os.path.join(path, file_name)
+
+    level = logging.DEBUG
+    logging.basicConfig(level=level,
+                        format='%(asctime)s [line:%(lineno)d] %(levelname)s %(message)s',
+                        datefmt='%a, %d %b %Y %H:%M:%S',
+                        filename=file_name,
+                        filemode='a+')
+    return logging
 
 
 def use_rate(use_place, width, height, side_cut=SIDE_CUT):
@@ -526,9 +595,8 @@ def package_data_check(input_data):
     row_id = None
     if res:
         if res[0][1] == user:
-            # 更新-更新时间
+            # 更新-更新时间,不返回guid
             update_mix_status_time(res[0][0])
-            row_id = res[0][0]
         else:
             # 新任务
             row_id = insert_mix_status(parm, user, other)
@@ -609,8 +677,8 @@ def run_product_rate_task(input_data, guid):
 
     file_name = str(time.time()).split('.')[0]
     path = os.path.join(settings.BASE_DIR, 'static')
-    file_name = os.path.join(path, file_name)
-    results = package_main_function(input_data, file_name)
+    path = os.path.join(path, file_name)
+    results = package_main_function(input_data, path)
     if results['error']:
         log.info('has some error during the work')
         yield '<p>has some error during the work</p>'
@@ -620,36 +688,11 @@ def run_product_rate_task(input_data, guid):
             log.info('create a project...')
             yield '<p>create a project...</p>'
             # post url
-            # project_id, url = http_post_create_project(results, input_data, file_name, log)
-            project = Project(
-                comment=input_data['project_comment'],
-                data_input=input_data['shape_data'] + input_data['bin_data']
-            )
-            project.save()
-            # save product
-            for res in results['statistics_data']:
-                product = ProductRateDetail(
-                    sheet_name=res['name'],
-                    num_sheet=res['num_sheet'],
-                    avg_rate=res['rate'],
-                    rates=res['rates'],
-                    detail=res['detail'],
-                    num_shape=res['num_shape'],
-                    sheet_num_shape=res['sheet_num_shape'],
-                    pic_url='static/%s%s.png' % (file_name, res['bin_type']),
-                    same_bin_list=res['same_bin_list'],
-                    empty_sections=res['empty_sections'],
-                    algorithm=res['algo_id'],
-                    empty_section_ares=res['empty_section_ares'],
-                    total_rates=res['total_rates']
-                )
-                product.save()
-                project.products.add(product)
-            project.save()
+            project_id = create_project(results, input_data, file_name)
             yield '<p>project save ...</p>'
-            url_res = 'http://119.145.166.182:8090/project_detail/%d' % project.id,
+            url_res = my_settings.BASE_URL + 'project_detail/' + str(project_id)
             # 更新数据库
-            update_mix_status_result(guid, url_res[0])
+            update_mix_status_result(guid, url_res)
             yield '<p>finish the job...</p>'
         except:
             log.info('can not create a project...')
@@ -657,6 +700,130 @@ def run_product_rate_task(input_data, guid):
             update_mix_status(guid=guid, status=u'保存结果出错')
 
 
+def create_project(results, post_data, filename):
+    # save project
+    project = Project(
+        comment=post_data['project_comment'],
+        data_input=post_data['shape_data'] + post_data['bin_data']
+    )
+    project.save()
+    # save product
+    for res in results['statistics_data']:
+        product = ProductRateDetail(
+            sheet_name=res['name'],
+            num_sheet=res['num_sheet'],
+            avg_rate=res['rate'],
+            rates=res['rates'],
+            detail=res['detail'],
+            num_shape=res['num_shape'],
+            sheet_num_shape=res['sheet_num_shape'],
+            pic_url='static/%s%s.png' % (filename, res['bin_type']),
+            same_bin_list=res['same_bin_list'],
+            empty_sections=res['empty_sections'],
+            algorithm=res['algo_id'],
+            empty_section_ares=res['empty_section_ares'],
+            total_rates=res['total_rates']
+        )
+        product.save()
+        project.products.add(product)
+    project.save()
+    return project.id
+
+
+def multi_piece(num_piece, shape_data, bin_data):
+    shape_data = shape_data.encode('utf-8')
+    bin_data = bin_data.encode('utf-8')
+    shape_data = json.loads(shape_data)
+    for shape in shape_data:
+        shape['Amount'] = shape['Amount'] * num_piece
+    shape_data = json.dumps(shape_data)
+    return shape_data, bin_data
+
+
+def run_product_rate_func(num_piece, shape_data, bin_data, comment):
+    # 整理input data
+    s_data, b_data = multi_piece(num_piece, shape_data, bin_data)
+    # 是否参数相同
+    project = Project.objects.filter(data_input=s_data + b_data).last()
+    if project:
+        all_products = project.products.all()
+        if project.comment != comment:
+            project.comment = comment
+            project.pk = None
+            project.save()
+            for product in all_products:
+                project.products.add(product)
+            project.save()
+
+        url = 'project_detail/' + str(project.id)
+        # 需要rate
+        rates = {}
+        for p in all_products:
+            tmp_list = p.rates.split(', ')
+            tmp_list = [float(x) for x in tmp_list]
+            rates[str(p.sheet_name.split(' ')[0])] = sum(tmp_list) / len(tmp_list)
+        return url, rates
+
+    filename = str(time.time()).split('.')[0]
+    path = os.path.join(settings.BASE_DIR, 'static')
+    path = os.path.join(path, filename)
+    values = {
+        'project_comment': comment,
+        'border': 5,
+        'shape_data': s_data,
+        'bin_data': b_data
+    }
+    results = package_main_function(values, pathname=path)
+    if results['error']:
+        return None, None, results['info']
+    else:
+        # 返回每种材料的平均利用率
+        rates = {}
+        try:
+            for res in results['statistics_data']:
+                tmp_list = res['rates'].split(', ')
+                tmp_list = [float(x) for x in tmp_list]
+                rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
+            project_id = create_project(results, values, filename)
+        except:
+            return None, rates, u'保存项目展示页面出错'
+
+        return 'project_detail/%d' % project_id, rates, u'运算结束'
+
+
+def http_post_test(num_piece, shape_data, bin_data, comment=None):
+    url = my_settings.URL_PRO_TEST
+    # 整理input data
+    s_data, b_data = multi_piece(num_piece, shape_data, bin_data)
+    # 整理描述
+    if comment:
+        try:
+            comment = json.loads(comment)
+            comment['Amount'] = num_piece
+            comment = json.dumps(comment, ensure_ascii=False)
+        except:
+            if type(comment) == type('string'):
+                comment += ' 最优利用率推荐生产数量=%d' % num_piece
+            else:
+                comment = json.dumps(comment, ensure_ascii=False)
+    else:
+        comment = '最优利用率推荐生产数量=%d' % num_piece
+    values = {
+        'project_comment': comment.encode('utf8'),
+        'border': 5,
+        'shape_data': s_data,
+        'bin_data': b_data,
+        'userName': 'Test'
+    }
+    data = urlencode(values)
+    req = urllib2.Request(url, data)  # 生成页面请求的完整数据
+    try:
+        response = urllib2.urlopen(req)  # 发送页面请求
+        text = response.read()
+    except urllib2.URLError as e:
+        pass
+
 if __name__ == '__main__':
-    run_product_rate_task()
+    pass
+
 

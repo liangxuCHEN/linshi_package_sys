@@ -1,6 +1,6 @@
 # encoding=utf8
 import copy
-from package_tools import use_rate, draw_one_pic
+from base_tools import draw_one_pic, use_rate
 
 """
 计算一个矩形组件的使用率
