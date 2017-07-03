@@ -14,8 +14,9 @@ from django.views import generic
 
 from myApi.forms import AlgoForm, LearnCommentForm, PredictForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
-from myApi.my_rectpack_lib.package_tools import del_same_data, package_main_function, find_best_piece,\
-    package_data_check, update_mix_status_result, update_mix_status, run_product_rate_task
+from myApi.my_rectpack_lib.package_tools import package_main_function, find_best_piece,\
+    package_data_check, update_mix_status_result, run_product_rate_task
+from myApi.my_rectpack_lib.base_tools import del_same_data
 from myApi.my_rectpack_lib.package_script_find_best_piece import get_work_and_calc
 
 from myApi.models import Userate, ProductRateDetail, Project
@@ -130,6 +131,7 @@ def product_use_rate(request):
             if project.comment != request.POST.get('project_comment'):
                 project.comment = request.POST.get('project_comment')
                 all_products = project.products.all()
+                # 新建一个项目，与原来项目一样，只是换了一个描述
                 project.pk = None
                 project.save()
                 for product in all_products:
@@ -152,6 +154,7 @@ def product_use_rate(request):
 
 @csrf_exempt
 def product_use_rate_get_detail(request):
+    # 现在没有用
     if request.method == 'POST':
         # 是否已经有
         project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()

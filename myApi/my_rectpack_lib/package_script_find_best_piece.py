@@ -9,12 +9,12 @@ import numpy as np
 from package import PackerSolution
 from myApi import my_settings
 from myApi.tools import send_mail
-from package_tools import Mssql, log_init, run_product_rate_func, multi_piece
+from package_tools import run_product_rate_func, multi_piece
+from base_tools import log_init, Mssql
 
 
 def get_data():
     # init output connection
-    log.info('get the table class....')
     conn = Mssql()
     sql_text = "select * From T_BOM_PlateUtilState where Status='新任务'"
     res = conn.exec_query(sql_text)
@@ -115,10 +115,10 @@ def http_post(num_piece, shape_data, bin_data, comment=None):
         code = ''
         reason = ''
         if hasattr(e, 'code'):
-            log.error('there is error in http post,error code:%d' % e.code)
+            # log.error('there is error in http post,error code:%d' % e.code)
             code = e.code
         if hasattr(e, 'reason'):
-            log.error('there is error in http post,error reason:%s' % e.reason)
+            # log.error('there is error in http post,error reason:%s' % e.reason)
             reason = e.reason
 
         # 如果出错发送邮件通知
@@ -139,19 +139,19 @@ def send_mail_process(body):
 
 
 def generate_work(input_data):
-    # date
+    # 更新日期
     created = dt.today()
-    log = log_init('save_works%s.log' % created.strftime('%Y_%m_%d'))
-    log.info('Loading data ....')
+    log_g = log_init('save_works%s.log' % created.strftime('%Y_%m_%d'))
+    log_g.info('Loading data ....')
     try:
         datas = json.loads(input_data['works'])
     except ValueError:
-        log.error('can not decode json data ....')
+        log_g.error('can not decode json data ....')
         return {'ErrDesc': u'数据格式错误，不符合json格式', 'IsErr': True, 'data': ''}
     result = list()
     insert_list = list()
     update_list = list()
-    log.info('connecting the DB ....')
+    log_g.info('connecting the DB ....')
     for data in datas:
         # 获取任务状态
         try:
@@ -159,10 +159,10 @@ def generate_work(input_data):
             bin_data = json.dumps(data['BinData'], ensure_ascii=False)
             product_comment = json.dumps(data['Product'], ensure_ascii=False)
         except KeyError:
-            log.error('missing the some of data ....')
+            log_g.error('missing some of data (ShapeData, BinData or Product comment) ....')
             return {'ErrDesc': u'数据中缺少 ShapeData 或者 BinData 的数据', 'IsErr': True, 'data': ''}
         res = has_same_work(shape_data, bin_data)
-        # 已存相同的数据，返回任务状态和结果
+        # 已存相同的数据，返回任务状态和结果 0:BOMVersion, 1:Status, 2:Url
         if res:
             # 如果BOMVersion相同，直接返回结果, BOMVersion不相同，写入详细结果
             if res[0][0] != data['BOMVersion']:
@@ -203,15 +203,15 @@ def generate_work(input_data):
             })
 
     # update db
-    log.info('saving the new works into DB ....')
+    log_g.info('saving the new works into DB ....')
 
     # 更新另外的数据库
     if len(insert_list) > 0:
         insert_work(insert_list)
     if len(update_list) > 0:
         update_new_work(update_list)
-    log.info('-------------finish and return the result----------------')
-    return {'ErrDesc': u'操作成功', 'IsErr': False, 'data': result}
+    log_g.info('-------------finish and return the result----------------')
+    return {'ErrDesc': u'操作成功', 'IsErr': False, 'data': result}, log_g
 
 
 def insert_same_data(bon_version, url, new_data, shape_data, bin_data, comment):
@@ -315,11 +315,11 @@ def update_result(data):
 
 
 def main_process():
-    global log
     end_day = dt.today()
-    log = log_init('find_best_piece%s.log' % end_day.strftime('%Y_%m_%d'))
+    log_main = log_init('find_best_piece%s.log' % end_day.strftime('%Y_%m_%d'))
+    log_main.info('connect to the DB and get the jobs....')
     rows = get_data()
-    log.info('connect to the DB and get the data, there are %d works today' % len(rows))
+    log_main.info('there are %d works today' % len(rows))
 
     for input_data in rows:
         # 更新另外的数据库,每得到结果更新一次
@@ -330,37 +330,39 @@ def main_process():
         if error:
             content_2['status'] = u'计算出错'
             update_result(content_2)
-            log.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
+            log_main.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
             # 如果出错发送邮件通知
             body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
             send_mail_process(body)
         else:
-            log.info('finish work BOMVersion=%s and begin to draw the solution' % input_data['BOMVersion'])
+            log_main.info('finish work BOMVersion=%s, best piece is %d and begin to draw the solution' % (
+                input_data['BOMVersion'], result['piece']))
             # 访问API
             http_response, rates = run_product_rate_func(result['piece'], input_data['ShapeData'],
-                                             input_data['BinData'], comment=input_data['Product'])
+                                                         input_data['BinData'], comment=input_data['Product'])
             result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
             content_2['status'] = u'运算结束'
             content_2['url'] = result['url']
             content_2['rates'] = list()
-            for skucode, rate in rates.items():
-                content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
 
-            # 更新数据结果
-            update_result(content_2)
+            if content_2['status'] == u'运算结束':
+                for skucode, rate in rates.items():
+                    content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
+                # 更新数据结果
+                update_result(content_2)
+                log_main.info('finish draw solution BOMVersion=%s' % input_data['BOMVersion'])
+            else:
+                log_main.info('error in draw solution BOMVersion=%s' % input_data['BOMVersion'])
 
-    log.info('-------------------All works has done----------------------------')
+    log_main.info('-------------------All works has done----------------------------')
 
 
 def get_work_and_calc(post_data):
-    result = generate_work(post_data)
+    result, log_work = generate_work(post_data)
     yield result
     if not result['IsErr']:
-        global log
-        end_day = dt.today()
-        log = log_init('find_best_piece%s.log' % end_day.strftime('%Y_%m_%d'))
         rows = get_data()
-        log.info('connect to the DB and get the data, there are %d works today' % len(rows))
+        log_work.info('connect to the DB and get the data, there are %d works today' % len(rows))
         yield u'<p>一共有%d任务</p>' % len(rows)
 
         for input_data in rows:
@@ -373,20 +375,21 @@ def get_work_and_calc(post_data):
             if error:
                 content_2['status'] = u'计算出错'
                 update_result(content_2)
-                log.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
+                log_work.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
                 yield u'<p>运行出错，输入数据有误</p>'
                 # 如果出错发送邮件通知
                 body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
                 send_mail_process(body)
             else:
-                log.info('finish work BOMVersion=%s and begin to draw the solution' % input_data['BOMVersion'])
-                # 访问API
+                log_work.info('finish work BOMVersion=%s, best piece is %d and begin to draw the solution' % (
+                    input_data['BOMVersion'], result['piece']))
                 # TODO:换成函数
                 try:
-                    http_response, rates, status = run_product_rate_func(result['piece'], input_data['ShapeData'],
-                                                                 input_data['BinData'], comment=input_data['Product'])
+                    http_response, rates, status = run_product_rate_func(
+                        result['piece'], input_data['ShapeData'],
+                        input_data['BinData'], comment=input_data['Product'])
                 except Exception as e:
-                    log.error('error:',e)
+                    log_work.error(e)
                     content_2['status'] = u'计算出错'
                     update_result(content_2)
                     yield u'<p>计算BOMVersion:%s 出错</p>' % input_data['BOMVersion']
@@ -402,17 +405,17 @@ def get_work_and_calc(post_data):
 
                     # 更新数据结果
                     update_result(content_2)
-                    log.info('finish draw solution BOMVersion=%s' % input_data['BOMVersion'])
+                    log_work.info('finish draw solution BOMVersion=%s' % input_data['BOMVersion'])
                     yield u'<p>计算BOMVersion:%s 结束，更新数据</p>' % input_data['BOMVersion']
                 else:
-                    log.info('error in draw solution BOMVersion=%s' % input_data['BOMVersion'])
+                    log_work.info('error in draw solution BOMVersion=%s' % input_data['BOMVersion'])
                     yield u'<p>BOMVersion=%s 画图出错, %s</p>' % (input_data['BOMVersion'], content_2['status'])
 
-        log.info('-------------------All works has done----------------------------')
+        log_work.info('-------------------All works has done----------------------------')
 
 
 if __name__ == '__main__':
-    # main_process()
-    pass
+    main_process()
+
 
 
