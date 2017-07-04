@@ -18,10 +18,16 @@ CALC_ERROR_STATUS = u'计算出错'
 NO_NUM_STATUS = u'没有找到最佳数量'
 
 
-def get_data():
+def get_data(bom_version=None):
     # init output connection
     conn = Mssql()
-    sql_text = "select * From T_BOM_PlateUtilState where Status='新任务'"
+    if bom_version:
+        sql_text = "select * From T_BOM_PlateUtilState where Status='{status}' " \
+                   "and BOMVersion='{bom_version}'".format(status=BEGIN_STATUS.encode('utf8'),
+                                                           bom_version=bom_version)
+    else:
+        sql_text = "select * From T_BOM_PlateUtilState where Status='%s'" % BEGIN_STATUS.encode('utf8')
+        print sql_text
     res = conn.exec_query(sql_text)
     content = list()
     for input_data in res:
@@ -180,14 +186,15 @@ def generate_work(input_data):
             log_g.error('missing some of data (ShapeData, BinData or Product comment) ....')
             return {'ErrDesc': u'数据中缺少 ShapeData 或者 BinData 的数据', 'IsErr': True, 'data': ''}
         res = has_same_work(shape_data, bin_data)
-        # 已存相同的数据，返回任务状态和结果 0:BOMVersion, 1:Status, 2:Url
+        # 已存相同的数据，返回任务状态和结果 0:BOMVersion, 1:Status, 2:Url 3:best num
         if res:
             # 如果BOMVersion相同，直接返回结果, BOMVersion不相同，如果状态是运算结束，写入详细结果
             # 如果不行就要重新计算
             if res[0][0] != data['BOMVersion']:
-                if res[0][0] == u'运算结束':
+                if res[0][1] == OK_STATUS:
                     insert_same_data(res[0][0], res[0][2], data, shape_data, bin_data, product_comment, res[0][3])
                 else:
+                    # TODO;有相同数据计算在进行，等一下再查一下
                     insert_list.append({
                         'SkuCode': data['SkuCode'],
                         'Status': 0,
@@ -197,6 +204,7 @@ def generate_work(input_data):
                         'Product': product_comment,
                         'BOMVersion': data['BOMVersion']
                     })
+
             else:
                 update_list.append({
                     'SkuCode': data['SkuCode'],
@@ -206,7 +214,7 @@ def generate_work(input_data):
                 })
 
             result.append({
-                'SkuCode': data['BOMVersion'],
+                'BOMVersion': data['BOMVersion'],
                 'Satuts': res[0][1],
                 'Result': res[0][2],
             })
@@ -214,7 +222,7 @@ def generate_work(input_data):
         else:
             # 新任务
             result.append({
-                'SkuCode': data['BOMVersion'],
+                'BOMVersion': data['BOMVersion'],
                 'Satuts': 0,
             })
 
@@ -268,7 +276,7 @@ def insert_same_data(bon_version, url, new_data, shape_data, bin_data, comment, 
     timestamps = dt.today().strftime('%Y-%m-%d %H:%M:%S')
     sql_text = "insert into T_BOM_PlateUtilState values ('%s','%s','%s','%s','%s','%s','%s','%s','%s', '%s')" % (
         new_data['SkuCode'], new_data['BOMVersion'], comment, url, shape_data,
-        bin_data, u'运算结束', timestamps, timestamps, best_num)
+        bin_data, OK_STATUS, timestamps, timestamps, best_num)
     conn.exec_non_query(sql_text)
 
 
@@ -325,12 +333,12 @@ def update_middle_result(data):
     # TODO: 保存中间结果
     conn = Mssql()
 
-    if data['status'] == u'运算结束':
+    if data['status'] == OK_STATUS:
         update_sql = "update T_BOM_PlateUtilState set Status='%s',Url='%s',UpdateDate='%s', BestNum=%d " \
                      "where BOMVersion='%s'" % (data['status'], data['url'],
                                                 data["Created"].strftime('%Y-%m-%d %H:%M:%S'),
                                                 data['best_num'], data['BOMVersion'])
-    elif data['status'] == u'没有找到最佳数量':
+    elif data['status'] == NO_NUM_STATUS:
         update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s'where BOMVersion='%s'" % (
             data['status'],  data['Created'].strftime('%Y-%m-%d %H:%M:%S'), data['BOMVersion'])
     else:
@@ -367,7 +375,7 @@ def main_process():
         content_2['BOMVersion'] = input_data['BOMVersion']
         content_2['Created'] = dt.today()
         if error:
-            content_2['status'] = u'计算出错'
+            content_2['status'] = CALC_ERROR_STATUS
             update_result(content_2)
             log_main.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
             # 如果出错发送邮件通知
@@ -380,11 +388,11 @@ def main_process():
             http_response, rates = run_product_rate_func(result['piece'], input_data['ShapeData'],
                                                          input_data['BinData'], comment=input_data['Product'])
             result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
-            content_2['status'] = u'运算结束'
+            content_2['status'] = OK_STATUS
             content_2['url'] = result['url']
             content_2['rates'] = list()
 
-            if content_2['status'] == u'运算结束':
+            if content_2['status'] == OK_STATUS:
                 for skucode, rate in rates.items():
                     content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
                 # 更新数据结果
@@ -396,18 +404,24 @@ def main_process():
     log_main.info('-------------------All works has done----------------------------')
 
 
-def get_work_and_calc(post_data):
+def get_work_and_calc(post_data, only_one=True):
     """
     收到任务请求
     第一步（generate_work）：保存任务到数据库，然后通过比对，过虑重复任务，调用所有需要计算的任务
     第二步：找出最佳生产数量，然后求这样的数量的板材排列
     :param post_data:
+    :param only_one:
     :return:
     """
     result, log_work = generate_work(post_data)
     yield result
     if not result['IsErr']:
-        rows = get_data()
+        print only_one
+        if only_one:
+            rows = get_data(bom_version=result['data'][0]['BOMVersion'])
+        else:
+            rows = get_data()
+            print 'all rows'
         log_work.info('connect to the DB and get the data, there are %d works today' % len(rows))
         yield u'<p>一共有%d任务</p>' % len(rows)
         # TODO：队列任务修改，每一个循环一个任务
@@ -419,7 +433,7 @@ def get_work_and_calc(post_data):
             content_2['SkuCode'] = input_data['SkuCode']
             content_2['Created'] = dt.today()
             if error:
-                content_2['status'] = u'没有找到最佳数量'
+                content_2['status'] = NO_NUM_STATUS
                 update_result(content_2)
                 log_work.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
                 yield u'<p>运行出错，输入数据有误</p>'
@@ -447,7 +461,7 @@ def get_work_and_calc(post_data):
                 content_2['status'] = status
                 content_2['url'] = result['url']
                 content_2['rates'] = list()
-                if content_2['status'] == u'运算结束':
+                if content_2['status'] == OK_STATUS:
                     for skucode, rate in rates.items():
                         content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
 

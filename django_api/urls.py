@@ -16,6 +16,7 @@ urlpatterns = [
     url(r'^project_detail/(?P<p_id>\d+)/$', views.project_detail, name='project_detail'),
     url(r'^best_piece/$', views.best_piece, name='best_piece'),
     url(r'^save_work/$', views.save_work, name='save_work'),
+    url(r'^save_work_all/$', views.save_work_all, name='save_work_all'),
     url(r'^calc_comment', views.statical_comment, name='statical_comment'),
     url(r'^nlp_learn/$', views.learn_classify_comment, name='nlp_learn'),
     url(r'^upload_file/$', views.upload_file, name='upload_file'),

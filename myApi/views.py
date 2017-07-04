@@ -264,11 +264,20 @@ def best_piece(request):
 @csrf_exempt
 def save_work(request):
     if request.method == 'POST':
-        resp = StreamingHttpResponse(get_work_and_calc(request.POST))
+        resp = StreamingHttpResponse(get_work_and_calc(request.POST, only_one=True))
         return resp
         # return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
     else:
         return render(request, 'add_work.html')
+
+
+def save_work_all(request):
+    if request.method == 'POST':
+        resp = StreamingHttpResponse(get_work_and_calc(request.POST, only_one=False))
+        return resp
+        # return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
+    else:
+        return render(request, 'save_work_all.html')
 
 
 def create_project(results, post_data, filename):
