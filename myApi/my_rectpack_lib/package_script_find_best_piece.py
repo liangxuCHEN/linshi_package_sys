@@ -17,6 +17,7 @@ OK_STATUS = u'运算结束'
 CALC_ERROR_STATUS = u'计算出错'
 NO_NUM_STATUS = u'没有找到最佳数量'
 
+
 def get_data():
     # init output connection
     conn = Mssql()
@@ -87,6 +88,14 @@ def find_best_piece(shape_data, bin_data, border=5):
 
 
 def http_post(num_piece, shape_data, bin_data, comment=None):
+    """
+    用于脚步访问自身网络，调用django的自身数据库
+    :param num_piece:
+    :param shape_data:
+    :param bin_data:
+    :param comment:
+    :return:
+    """
     url = my_settings.URL_POST
     # 整理input data
     s_data, b_data = multi_piece(num_piece, shape_data, bin_data)
@@ -143,6 +152,11 @@ def send_mail_process(body):
 
 
 def generate_work(input_data):
+    """
+    接受任务，存入数据库，（然后调出数据库里面需要执行的所有任务），马上执行
+    :param input_data:
+    :return:
+    """
     # 更新日期
     created = dt.today()
     log_g = log_init('save_works%s.log' % created.strftime('%Y_%m_%d'))
@@ -221,7 +235,7 @@ def generate_work(input_data):
     # update db
     log_g.info('saving the new works into DB ....')
 
-    # 更新另外的数据库
+    # 更新数据库
     if len(insert_list) > 0:
         insert_work(insert_list)
     if len(update_list) > 0:
@@ -383,13 +397,20 @@ def main_process():
 
 
 def get_work_and_calc(post_data):
+    """
+    收到任务请求
+    第一步（generate_work）：保存任务到数据库，然后通过比对，过虑重复任务，调用所有需要计算的任务
+    第二步：找出最佳生产数量，然后求这样的数量的板材排列
+    :param post_data:
+    :return:
+    """
     result, log_work = generate_work(post_data)
     yield result
     if not result['IsErr']:
         rows = get_data()
         log_work.info('connect to the DB and get the data, there are %d works today' % len(rows))
         yield u'<p>一共有%d任务</p>' % len(rows)
-
+        # TODO：队列任务修改，每一个循环一个任务
         for input_data in rows:
             # 更新另外的数据库,每得到结果更新一次
             content_2 = {}
