@@ -501,7 +501,7 @@ def insert_mix_status(paramets, user_name, other):
 
 def run_product_rate_task(input_data, guid):
     created = dt.today()
-    log_run = log_init(('mix_rate%s.log' % created.strftime('%Y_%m_%d')))
+    log_run = log_init('mix_rate%s.log' % created.strftime('%Y_%m_%d'))
     log_run.info('read the db...')
     update_mix_status(guid=guid, status=u'计算中')
     yield '<p>Working on the job guid=%s </p>' % guid

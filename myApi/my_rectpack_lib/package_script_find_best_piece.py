@@ -12,6 +12,10 @@ from myApi.tools import send_mail
 from package_tools import run_product_rate_func, multi_piece
 from base_tools import log_init, Mssql
 
+BEGIN_STATUS = u'新任务'
+OK_STATUS = u'运算结束'
+CALC_ERROR_STATUS = u'计算出错'
+NO_NUM_STATUS = u'没有找到最佳数量'
 
 def get_data():
     # init output connection
@@ -164,9 +168,21 @@ def generate_work(input_data):
         res = has_same_work(shape_data, bin_data)
         # 已存相同的数据，返回任务状态和结果 0:BOMVersion, 1:Status, 2:Url
         if res:
-            # 如果BOMVersion相同，直接返回结果, BOMVersion不相同，写入详细结果
+            # 如果BOMVersion相同，直接返回结果, BOMVersion不相同，如果状态是运算结束，写入详细结果
+            # 如果不行就要重新计算
             if res[0][0] != data['BOMVersion']:
-                insert_same_data(res[0][0], res[0][2], data, shape_data, bin_data, product_comment)
+                if res[0][0] == u'运算结束':
+                    insert_same_data(res[0][0], res[0][2], data, shape_data, bin_data, product_comment, res[0][3])
+                else:
+                    insert_list.append({
+                        'SkuCode': data['SkuCode'],
+                        'Status': 0,
+                        'ShapeData': shape_data,
+                        'BinData': bin_data,
+                        'Created': created,
+                        'Product': product_comment,
+                        'BOMVersion': data['BOMVersion']
+                    })
             else:
                 update_list.append({
                     'SkuCode': data['SkuCode'],
@@ -214,7 +230,7 @@ def generate_work(input_data):
     return {'ErrDesc': u'操作成功', 'IsErr': False, 'data': result}, log_g
 
 
-def insert_same_data(bon_version, url, new_data, shape_data, bin_data, comment):
+def insert_same_data(bon_version, url, new_data, shape_data, bin_data, comment, best_num):
     conn = Mssql()
     sql_text = "SELECT * FROM T_BOM_PlateUtilUsedRate WHERE BOMVersion='%s'" % bon_version
     # 拿结果
@@ -236,8 +252,9 @@ def insert_same_data(bon_version, url, new_data, shape_data, bin_data, comment):
 
     # 插入新的状态
     timestamps = dt.today().strftime('%Y-%m-%d %H:%M:%S')
-    sql_text = "insert into T_BOM_PlateUtilState values ('%s','%s','%s','%s','%s','%s','%s','%s','%s')" % (
-        new_data['SkuCode'], new_data['BOMVersion'], comment, url, shape_data, bin_data, u'运算结束', timestamps, timestamps)
+    sql_text = "insert into T_BOM_PlateUtilState values ('%s','%s','%s','%s','%s','%s','%s','%s','%s', '%s')" % (
+        new_data['SkuCode'], new_data['BOMVersion'], comment, url, shape_data,
+        bin_data, u'运算结束', timestamps, timestamps, best_num)
     conn.exec_non_query(sql_text)
 
 
@@ -264,7 +281,7 @@ def update_new_work(data):
 
 def has_same_work(shape_data, bin_data):
     conn = Mssql()
-    sql_text = "SELECT BOMVersion, Status, Url FROM T_BOM_PlateUtilState WHERE ShapeData='%s' and BinData='%s'" % (
+    sql_text = "SELECT BOMVersion, Status, Url, BestNum FROM T_BOM_PlateUtilState WHERE ShapeData='%s' and BinData='%s'" % (
         shape_data, bin_data)
     return conn.exec_query(sql_text)
 
@@ -275,10 +292,10 @@ def insert_work(data):
         insert_data.append((
             d['SkuCode'], d['BOMVersion'], d['Product'], '', d['ShapeData'], d['BinData'],
             u'新任务', d['Created'].strftime('%Y-%m-%d %H:%M:%S'),
-            d['Created'].strftime('%Y-%m-%d %H:%M:%S')
+            d['Created'].strftime('%Y-%m-%d %H:%M:%S'), 0
         ))
     conn = Mssql()
-    insert_sql = "insert into T_BOM_PlateUtilState values (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    insert_sql = "insert into T_BOM_PlateUtilState values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%d)"
     conn.exec_many_query(insert_sql, insert_data)
 
 
@@ -290,20 +307,28 @@ def update_running_work(data):
         conn.exec_non_query(update_sql.encode('utf8'))
 
 
-def update_ending_work(data):
+def update_middle_result(data):
+    # TODO: 保存中间结果
     conn = Mssql()
 
-    if data['status'] == u'计算出错':
+    if data['status'] == u'运算结束':
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',Url='%s',UpdateDate='%s', BestNum=%d " \
+                     "where BOMVersion='%s'" % (data['status'], data['url'],
+                                                data["Created"].strftime('%Y-%m-%d %H:%M:%S'),
+                                                data['best_num'], data['BOMVersion'])
+    elif data['status'] == u'没有找到最佳数量':
         update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s'where BOMVersion='%s'" % (
             data['status'],  data['Created'].strftime('%Y-%m-%d %H:%M:%S'), data['BOMVersion'])
     else:
-        update_sql = "update T_BOM_PlateUtilState set Status='%s',Url='%s',UpdateDate='%s'where BOMVersion='%s'" % (
-            data['status'], data['url'], data['Created'].strftime('%Y-%m-%d %H:%M:%S'), data['BOMVersion'])
+        update_sql = "update T_BOM_PlateUtilState set Status='%s',UpdateDate='%s', BestNum=%d " \
+                     "where BOMVersion='%s'" % (data['status'], data["Created"].strftime('%Y-%m-%d %H:%M:%S'),
+                                                data['best_num'], data['BOMVersion'])
+
     conn.exec_non_query(update_sql.encode('utf8'))
 
 
 def update_result(data):
-    update_ending_work(data)
+    update_middle_result(data)
     conn = Mssql()
 
     if 'rates' in data.keys():
@@ -373,7 +398,7 @@ def get_work_and_calc(post_data):
             content_2['SkuCode'] = input_data['SkuCode']
             content_2['Created'] = dt.today()
             if error:
-                content_2['status'] = u'计算出错'
+                content_2['status'] = u'没有找到最佳数量'
                 update_result(content_2)
                 log_work.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
                 yield u'<p>运行出错，输入数据有误</p>'
@@ -383,14 +408,16 @@ def get_work_and_calc(post_data):
             else:
                 log_work.info('finish work BOMVersion=%s, best piece is %d and begin to draw the solution' % (
                     input_data['BOMVersion'], result['piece']))
+                content_2['best_num'] = result['piece']
                 # TODO:换成函数
                 try:
                     http_response, rates, status = run_product_rate_func(
                         result['piece'], input_data['ShapeData'],
                         input_data['BinData'], comment=input_data['Product'])
                 except Exception as e:
+                    log_work.error(status)
                     log_work.error(e)
-                    content_2['status'] = u'计算出错'
+                    content_2['status'] = u'生产项目详细页面出错'
                     update_result(content_2)
                     yield u'<p>计算BOMVersion:%s 出错</p>' % input_data['BOMVersion']
                     continue
