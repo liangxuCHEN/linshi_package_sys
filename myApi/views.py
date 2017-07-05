@@ -25,6 +25,7 @@ from myApi.data_mining_lib.comment_data import main_process as calc_comment,\
 from myApi.data_mining_lib.nlp_tools import learn_model, predict_test
 from myApi.tools import handle_uploaded_file
 
+from mrq.job import queue_job, Job
 
 def home_page(request):
     return render(request, 'index.html')
@@ -599,3 +600,32 @@ class ProjectIndexView(generic.ListView):
     context_object_name = "project_list"
 
 
+def test_mrq(requeste):
+    job_id = queue_job("tasks.%s" % 'Add', {"a": 41, "b": 1, "sleep": 1},queue='Add')
+    print job_id
+    time.sleep(3)
+    job = Job(job_id)
+    job.fetch()
+    res = json.dumps({k: v for k, v in job.data.iteritems() if k in ("status", "result")})
+    return HttpResponse(res, content_type="application/json")
+
+
+def test_rate(request):
+    if request.method == 'POST':
+        data = request.POST
+        filename = '%s_%s_%s_%s_%s_%s_%s' %\
+                       (data['shape_x'], data['shape_y'], data['width'], data['height'],
+                        data['border'], data['is_texture'], data['is_vertical'])
+        path = os.path.join(settings.BASE_DIR, 'static')
+        path = os.path.join(path, filename)
+        job_id = queue_job("tasks.SingleUseRate", {
+            'data': request.POST,
+            'path': path
+        },queue='package-default')
+        time.sleep(3)
+        job = Job(job_id)
+        job.fetch()
+        res = json.dumps({k: v for k, v in job.data.iteritems() if k in ("status", "result")})
+        return HttpResponse(res, content_type="application/json")
+    else:
+        return render(request, 'use_rate_demo.html')

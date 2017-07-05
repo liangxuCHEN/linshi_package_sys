@@ -2,7 +2,7 @@
 {% block title %}组件使用率计算{% endblock %}
 {% block content %}
 <div class="jumbotron">
-<form method="post" action="{% url 'single_use_rate_demo'%}">
+<form method="post" action="{% url 'test_rate'%}">
     {% csrf_token %}
     <label>组件的长(mm)：</label><input type="number" name="shape_x" min="1"/><br/>
     <label>组件的宽(mm)：</label><input type="number" name="shape_y" min="1"/><br/>
