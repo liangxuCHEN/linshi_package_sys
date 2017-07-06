@@ -84,7 +84,7 @@ SECRET_KEY = 'scnpa^pn*_12ymkspo7jr+$8rd)az6_qn*d1@m=@vk8t_e%tix'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 ip_address = socket.gethostbyname(socket.gethostname())
-if ip_address == '192.168.3.187':
+if ip_address == '192.168.3.172':
     DEBUG = False
 else:
     DEBUG = True
@@ -148,7 +148,7 @@ WSGI_APPLICATION = 'django_api.wsgi.application'
 DATABASES = {  
     'default': {  
         'ENGINE': 'django.db.backends.mysql',  
-        'NAME': 'django_dev',  
+        'NAME': 'django_pro',  
         'USER': 'django',
         'PASSWORD': 'Abc123',  
         'HOST': '192.168.3.172',  

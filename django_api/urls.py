@@ -24,8 +24,6 @@ urlpatterns = [
     url(r'^get_comment_sentence$', views.get_comment_sentence, name='get_comment_sentence'),
     url(r'^get_all_comment', views.get_all_comment, name='get_all_comment'),
     url(r'^get_comment_and_pic', views.get_comment_and_pic, name='get_comment_and_pic'),
-    url(r'^test_mrq/$', views.test_mrq, name='test_mrq'),
-    url(r'^test_rate/$', views.test_rate, name='test_rate'),
     url(r'^create_job/$', views.create_job, name='create_job'),
     url(r'^admin/', include(admin.site.urls)),
 ]

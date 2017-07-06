@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/home/louis/django_1.10/linshi_package_sys")
+sys.path.append("/home/django/linshi_package_sys")
 from mrq.task import Task
 from mrq.context import run_task, log
 from mrq.job import queue_job, get_job_result

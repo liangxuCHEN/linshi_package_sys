@@ -7,7 +7,7 @@ class SaveUseRate(Task):
     def connect(self):
         import os, django
         import sys
-        sys.path.append("/home/louis/django_1.10/linshi_package_sys/")
+        sys.path.append("/home/django/linshi_package_sys/")
         os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_api.settings")
         django.setup()
         
