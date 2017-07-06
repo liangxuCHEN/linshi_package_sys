@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}添加任务{% endblock %}
+{% block content %}
+<div class="jumbotron">
+<form method="post" action="{% url 'create_job' %}">
+    {% csrf_token %}
+    <textarea rows="4" cols="50" name="params" placeholder="json数据">{{ works }}</textarea><br>
+    <input type="text" name="path" placeholder="task name">
+    <input type="submit" value="提交" />
+</form>
+</div>
+{% endblock %}

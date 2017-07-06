@@ -600,32 +600,96 @@ class ProjectIndexView(generic.ListView):
     context_object_name = "project_list"
 
 
-def test_mrq(requeste):
-    job_id = queue_job("tasks.%s" % 'Add', {"a": 41, "b": 1, "sleep": 1},queue='Add')
-    print job_id
-    time.sleep(3)
-    job = Job(job_id)
-    job.fetch()
-    res = json.dumps({k: v for k, v in job.data.iteritems() if k in ("status", "result")})
-    return HttpResponse(res, content_type="application/json")
 
-
-def test_rate(request):
+def create_job(request):
     if request.method == 'POST':
-        data = request.POST
+        taskpath = request.POST.get('path')
+        taskparams = json.loads(request.POST.get('params'))
+
         filename = '%s_%s_%s_%s_%s_%s_%s' %\
-                       (data['shape_x'], data['shape_y'], data['width'], data['height'],
-                        data['border'], data['is_texture'], data['is_vertical'])
+                       (taskparams['data']['shape_x'],
+                        taskparams['data']['shape_y'],
+                        taskparams['data']['width'],
+                        taskparams['data']['height'],
+                        taskparams['data']['border'],
+                        taskparams['data']['is_texture'],
+                        taskparams['data']['is_vertical'])
         path = os.path.join(settings.BASE_DIR, 'static')
         path = os.path.join(path, filename)
-        job_id = queue_job("tasks.SingleUseRate", {
-            'data': request.POST,
-            'path': path
-        },queue='package-default')
-        time.sleep(3)
-        job = Job(job_id)
-        job.fetch()
-        res = json.dumps({k: v for k, v in job.data.iteritems() if k in ("status", "result")})
-        return HttpResponse(res, content_type="application/json")
+        taskparams['path'] = path
+        taskparams['filename'] = filename
+        taskparams['source_name'] = 'SingleUseRate'
+
+        job_id = queue_job("tasks.package.%s" % taskpath, taskparams)
+        return HttpResponse(json.dumps({"job_id": str(job_id)}), content_type="application/json")
     else:
-        return render(request, 'use_rate_demo.html')
+        return render(request, 'create_job.html')
+
+
+# def test_mrq(request):
+#     job_id = queue_job("tasks.%s" % 'Add', {"a": 41, "b": 1, "sleep": 1},queue='Add')
+#     print job_id
+#     time.sleep(3)
+#     job = Job(job_id)
+#     job.fetch()
+#     res = json.dumps({k: v for k, v in job.data.iteritems() if k in ("status", "result")})
+#     return HttpResponse(res, content_type="application/json")
+
+
+# def test_rate(request):
+#     if request.method == 'POST':
+#         data = request.POST
+#         filename = '%s_%s_%s_%s_%s_%s_%s' %\
+#                        (data['shape_x'], data['shape_y'], data['width'], data['height'],
+#                         data['border'], data['is_texture'], data['is_vertical'])
+#         path = os.path.join(settings.BASE_DIR, 'static')
+#         path = os.path.join(path, filename)
+
+#         job_id = queue_job("tasks.CreateTask", {
+#             'data': request.POST,
+#             'path': path,
+#             'filename':filename,
+#             'source_name':'SingleUseRate'
+#         },queue='package-default')
+
+#         return HttpResponse(json.dumps({'job_id': job_id}), content_type="application/json")
+#         # time.sleep(3)
+#         # job = Job(job_id)
+#         # job.fetch()
+#         # res = json.dumps({k: v for k, v in job.data.iteritems() if k in ("status", "result")})
+#         # return HttpResponse(res, content_type="application/json")
+#     else:
+#         return render(request, 'use_rate_demo.html')
+
+
+# def product_use_rate_mrq(request):
+#     if request.method == 'POST':
+#         # 是否已经有
+#         project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
+#         if project:
+#             if project.comment != request.POST.get('project_comment'):
+#                 project.comment = request.POST.get('project_comment')
+#                 all_products = project.products.all()
+#                 project.pk = None
+#                 project.save()
+#                 for product in all_products:
+#                     project.products.add(product)
+
+#             content = {
+#                 'shape_data': request.POST['shape_data'],
+#                 'bin_data': request.POST['bin_data'],
+#                 'project_id': project.id,
+#                 'form': AlgoForm()
+#             }
+#             return render(request, 'product_use_rate_demo.html', content)
+#         filename = str(time.time()).split('.')[0]
+#         path = os.path.join(settings.BASE_DIR, 'static')
+#         path = os.path.join(path, filename)
+#         job_id = queue_job("tasks.ProductUseRate", {
+#             'data': request.POST,
+#             'path': path
+#         },queue='product-rate')
+#         return HttpResponse(json.dumps({'job_id': job_id}), content_type="application/json")
+#     else:
+#         form = AlgoForm()
+#         return render(request, 'product_use_rate_demo.html', {'form': form})
