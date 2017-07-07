@@ -9,7 +9,7 @@ reload(sys)
 sys.setdefaultencoding("utf-8")
 
 
-BOM_HOST = 'LS201510141838'
+BOM_HOST = '192.168.3.253:1433'
 BOM_HOST_USER = 'bsdb'
 BOM_HOST_PASSWORD = 'ls123123'
 BOM_DB = 'BSPRODUCTCENTER'

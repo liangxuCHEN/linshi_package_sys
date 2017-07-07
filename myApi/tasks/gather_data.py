@@ -58,6 +58,6 @@ class SaveProductRate(Task):
             project.products.add(product)
         project.save()
         # TODO:数据库操作转移
-        url_res = my_settings.BASE_URL + 'project_detail/' + str(project_id)
+        #url_res = my_settings.BASE_URL + 'project_detail/' + str(project_id)
         # 更新数据库
-        update_mix_status_result(guid, url_res)
+        #update_mix_status_result(guid, url_res)

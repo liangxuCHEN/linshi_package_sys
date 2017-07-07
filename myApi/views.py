@@ -701,4 +701,4 @@ def product_use_rate_job(request):
         return HttpResponse(json.dumps({'job_id': str(job_id)}), content_type="application/json")
     else:
         form = AlgoForm()
-        return render(request, 'product_use_rate_demo.html', {'form': form})
+        return render(request, 'product_use_rate.html', {'form': form})

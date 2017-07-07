@@ -37,11 +37,6 @@ class CreateTask(Task):
                 'path': params["path"],
             })
 
-            if not result['error']:
-                result = subtask("tasks.gather_data.SaveUseRate", {
-                    "rate": result["rate"],
-                    'filename': params["filename"],
-                })
 
         if params["source_name"] == 'ProductRate':
 
@@ -70,11 +65,14 @@ class SingleUseRate(Task):
 
 class ProductRate(Task):
     def connect(self):
+        #import sys
+        #sys.path.append("/home/django/linshi_package_sys/")
         import os, django
         os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_api.settings")
         django.setup()
 
     def run(self, params):
+        self.connect()
         res_check = package_data_check(params.get("data"))
         if res_check['error']:
             return res_check
@@ -114,6 +112,7 @@ class ProductRate(Task):
                 project_id = create_project(res, params.get("data"), params.get("filename"))
                 url_res = BASE_URL + 'project_detail/' + str(project_id)
                 update_mix_status_result(res_check['row_id'], url_res)
+                return url_res
             except:
                 update_mix_status(guid=res_check['row_id'], status=u'保存结果出错')
         return res

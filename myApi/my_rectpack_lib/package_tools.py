@@ -9,8 +9,8 @@ from datetime import datetime as dt
 
 from package import PackerSolution
 import single_use_rate
-from base_tools import draw_one_pic, use_rate, find_the_same_position, log_init, Mssql
-from sql import update_mix_status, update_mix_status_time, insert_mix_status
+from base_tools import draw_one_pic, use_rate, find_the_same_position, log_init
+from sql import update_mix_status, update_mix_status_time, insert_mix_status,Mssql
 
 from mrq.context import log
 # from django_api import settings
@@ -403,6 +403,7 @@ def find_best_piece(input_data):
 def package_data_check(input_data):
     # 数据库连接-检查数据库
     try:
+	print input_data
         parm = {
             'comment': input_data['project_comment'],
             'shape_data': input_data['shape_data'],
@@ -416,13 +417,15 @@ def package_data_check(input_data):
     except Exception as e:
         update_mix_status(status=u'缺少参数')
         return {'error': True, 'info': u'缺少参数'}
-
+    log.info( '+++++++++++++++++++++++++++++++++++++++++++')
+    log.info(parm['comment'])
     # 是否有重复
     conn = Mssql()
     sql_text = """SELECT Guid, CreateUser FROM T_BOM_PlateUtilMixedState WHERE
     Comment='{comment}' and  ShapeData='{shape_data}' and BinData='{bin_data}' and Paramets='{other}'""".format(
         comment=parm['comment'], shape_data=parm['shape_data'],
         bin_data=parm['bin_data'], other=other)
+    log.info(sql_text)
     res = conn.exec_query(sql_text)
     row_id = None
     if len(res) > 0:
