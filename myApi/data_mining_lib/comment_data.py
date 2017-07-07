@@ -33,7 +33,7 @@ def get_comment_and_pic(item_id, begin_date, end_date):
     conn = init_sql_253()
     sql_text = """SELECT ImgServiceURL, RateContent,RateDate FROM V_Treasure_Evaluation(nolock)
     WHERE TreasureID='{item_id}' and RateDate<'{end_date}' and RateDate>'{begin_date}'
-    and ImgServiceURL is not null;""".format(item_id=item_id, begin_date=begin_date, end_date=end_date)
+    and ImgServiceURL is not null ORDER BY RateDate DESC;""".format(item_id=item_id, begin_date=begin_date, end_date=end_date)
     df = pd.io.sql.read_sql(sql_text, con=conn)
     # df['RateDate'] = df['RateDate'].strftime('%Y-%m-%d %H:%M:%S')
     df['RateDate'] = df['RateDate'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S'))
