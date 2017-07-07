@@ -37,6 +37,7 @@ def get_comment_and_pic(item_id, begin_date, end_date):
     df = pd.io.sql.read_sql(sql_text, con=conn)
     # df['RateDate'] = df['RateDate'].strftime('%Y-%m-%d %H:%M:%S')
     df['RateDate'] = df['RateDate'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S'))
+    df = df.drop_duplicates()
     return df.to_json(orient='records')
 
 
