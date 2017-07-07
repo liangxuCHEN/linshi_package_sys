@@ -657,33 +657,33 @@ def create_job(request):
 
 def product_use_rate_job(request):
     if request.method == 'POST':
-        # 数据检查
-        res_check = package_data_check(request.POST)
-        if res_check['error']:
-            # 出错退出
-            return HttpResponse(json.dumps(res_check), content_type="application/json")
-        elif not res_check['row_id']:
-            # 所有条件相同直接退出
-            return HttpResponse(json.dumps(res_check), content_type="application/json")
-
-        # 是否参数相同
-        project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
-        if project:
-            if project.comment != request.POST.get('project_comment'):
-                project.comment = request.POST.get('project_comment')
-                all_products = project.products.all()
-                # 新建一个项目，与原来项目一样，只是换了一个描述
-                project.pk = None
-                project.save()
-                for product in all_products:
-                    project.products.add(product)
-
-                project.save()
-
-            content = 'http://119.145.166.182:8090/project_detail/%d' % project.id
-            # 更新数据库
-            update_mix_status_result(res_check['row_id'], content)
-            return HttpResponse(json.dumps(content), content_type="application/json")
+        # # 数据检查
+        # res_check = package_data_check(request.POST)
+        # if res_check['error']:
+        #     # 出错退出
+        #     return HttpResponse(json.dumps(res_check), content_type="application/json")
+        # elif not res_check['row_id']:
+        #     # 所有条件相同直接退出
+        #     return HttpResponse(json.dumps(res_check), content_type="application/json")
+        #
+        # # 是否参数相同
+        # project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
+        # if project:
+        #     if project.comment != request.POST.get('project_comment'):
+        #         project.comment = request.POST.get('project_comment')
+        #         all_products = project.products.all()
+        #         # 新建一个项目，与原来项目一样，只是换了一个描述
+        #         project.pk = None
+        #         project.save()
+        #         for product in all_products:
+        #             project.products.add(product)
+        #
+        #         project.save()
+        #
+        #     content = 'http://119.145.166.182:8090/project_detail/%d' % project.id
+        #     # 更新数据库
+        #     update_mix_status_result(res_check['row_id'], content)
+        #     return HttpResponse(json.dumps(content), content_type="application/json")
 
         filename = str(time.time()).split('.')[0]
         path = os.path.join(settings.BASE_DIR, 'static')
@@ -693,7 +693,6 @@ def product_use_rate_job(request):
         taskparams['post_data'] = request.POST
         taskparams['path'] = path
         taskparams['filename'] = filename
-        taskparams['row_id'] = res_check['row_id']
         taskparams['source_name'] = 'ProductRate'
 
         job_id = queue_job("tasks.package.CreateTask", taskparams)

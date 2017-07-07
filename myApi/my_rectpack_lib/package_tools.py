@@ -1,21 +1,16 @@
 # encoding=utf8
-import os
 import json
 import numpy as np
-import urllib2
-from urllib import urlencode
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.patches as patches
-import uuid
-import time
 from datetime import datetime as dt
 
 from package import PackerSolution
 import single_use_rate
 from base_tools import draw_one_pic, use_rate, find_the_same_position, log_init, Mssql
-from myApi import my_settings
+from sql import update_mix_status, update_mix_status_time, insert_mix_status
 
 from mrq.context import log
 # from django_api import settings
@@ -24,6 +19,9 @@ from mrq.context import log
 EMPTY_BORDER = 5
 SIDE_CUT = 10  # 板材的切边宽带
 EFFECTIVE_RATE = 0.5  # 余料的有效率
+# produce env = 0.00001
+NUM_SAVE = 5
+MAX_VAR_RATE = 0.0001
 
 
 def empty_ares(empty_section):
@@ -382,11 +380,11 @@ def find_best_piece(input_data):
                 best_pic = num_pic
                 best_rates = [(data['bin_key'], data['rate']) for data in res]
 
-            if num_pic > my_settings.NUM_SAVE:
+            if num_pic > NUM_SAVE:
                 rate_res.append(tmp_avg_rate)
-                np_arr = np.array(rate_res[-1 * my_settings.NUM_SAVE:])
+                np_arr = np.array(rate_res[-1 * NUM_SAVE:])
                 var_rate = np_arr.var()
-                if var_rate < my_settings.MAX_VAR_RATE:
+                if var_rate < MAX_VAR_RATE:
                     # 少于阈值返回最佳值
                     return {
                         'error': False,
@@ -427,10 +425,18 @@ def package_data_check(input_data):
         bin_data=parm['bin_data'], other=other)
     res = conn.exec_query(sql_text)
     row_id = None
-    if res:
-        if res[0][1] == user:
+    if len(res) > 0:
+        has_same_user = False
+        user_guid = None
+        for row_data in res:
+            if row_data[1] == user:
+                has_same_user = True
+                user_guid = row_data[0]
+                break
+
+        if has_same_user:
             # 更新-更新时间,不返回guid
-            update_mix_status_time(res[0][0])
+            update_mix_status_time(user_guid)
         else:
             # 新任务
             row_id = insert_mix_status(parm, user, other)
@@ -439,66 +445,6 @@ def package_data_check(input_data):
         row_id = insert_mix_status(parm, user, other)
 
     return {'error': False, 'row_id': row_id}
-
-
-def update_mix_status_time(guid):
-    update_time = dt.today()
-    conn = Mssql()
-    sql_text = "UPDATE T_BOM_PlateUtilMixedState SET UpdateDate='{update_time}' WHERE Guid='{guid}'".format(
-        guid=guid, update_time=update_time.strftime('%Y-%m-%d %H:%M:%S'))
-    conn.exec_non_query(sql_text)
-
-
-def update_mix_status_result(guid, url):
-    update_time = dt.today()
-    conn = Mssql()
-    sql_text = """UPDATE T_BOM_PlateUtilMixedState SET
-    UpdateDate='{update_time}', Url='{url}', Status='{status}' WHERE Guid='{guid}'""".format(
-        guid=guid, status=u'运算结束', url=url, update_time=update_time.strftime('%Y-%m-%d %H:%M:%S'))
-    conn.exec_non_query(sql_text)
-
-
-def update_mix_status(guid=None, status=None):
-    if not guid:
-        guid = uuid.uuid4()
-    if not status:
-        status = u'运行出错'
-    update_time = dt.today()
-    conn = Mssql()
-    sql_text = """UPDATE T_BOM_PlateUtilMixedState
-    SET UpdateDate='{update_time}', Status='{status}' WHERE Guid='{guid}'""".format(
-        guid=guid, status=status, update_time=update_time.strftime('%Y-%m-%d %H:%M:%S'))
-    conn.exec_non_query(sql_text)
-
-
-def insert_mix_status(paramets, user_name, other):
-    created = dt.today()
-    conn = Mssql()
-    row_id = uuid.uuid4()
-    sql_text = "insert into T_BOM_PlateUtilMixedState values ('%s','%s','%s','%s','%s','%s','%s', '%s', '%s', '%s')" % (
-        row_id, u'新任务', ' ', paramets['comment'], user_name,
-        created.strftime('%Y-%m-%d %H:%M:%S'), created.strftime('%Y-%m-%d %H:%M:%S'),
-        paramets['shape_data'], paramets['bin_data'], other)
-    conn.exec_non_query(sql_text)
-
-    # 更新明细
-    comments = json.loads(paramets['comment'])
-    # 整理数据
-    insert_data = list()
-    for data in comments:
-        insert_data.append((
-            row_id,
-            data['Series'],
-            data['SkuCode'],
-            data['ItemName'],
-            data['SkuName'],
-            data['SeriesVersion'],
-            data['BOMVersion'],
-            data['Amount']
-        ))
-    sql_text = "insert into T_BOM_PlateUtilMixedDetail values (%s,%s,%s,%s,%s,%s,%s,%s)"
-    conn.exec_many_query(sql_text, insert_data)
-    return row_id
 
 
 def run_product_rate_task(input_data, guid, path):
