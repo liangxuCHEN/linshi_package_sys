@@ -33,10 +33,11 @@ def get_comment_and_pic(item_id, begin_date, end_date):
     conn = init_sql_253()
     sql_text = """SELECT ImgServiceURL, RateContent,RateDate FROM V_Treasure_Evaluation(nolock)
     WHERE TreasureID='{item_id}' and RateDate<'{end_date}' and RateDate>'{begin_date}'
-    and ImgServiceURL is not null;""".format(item_id=item_id, begin_date=begin_date, end_date=end_date)
+    and ImgServiceURL is not null ORDER BY RateDate DESC;""".format(item_id=item_id, begin_date=begin_date, end_date=end_date)
     df = pd.io.sql.read_sql(sql_text, con=conn)
     # df['RateDate'] = df['RateDate'].strftime('%Y-%m-%d %H:%M:%S')
     df['RateDate'] = df['RateDate'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S'))
+    df = df.drop_duplicates()
     return df.to_json(orient='records')
 
 
@@ -68,7 +69,7 @@ def load_data(id_list, begin_date, end_date):
     conn = init_sql()
     sql_text = "SELECT * FROM T_DCR_Comment (nolock) " \
                "WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s';" % (str(id_list), begin_date, end_date)
-    return pd.io.sql.read_sql(sql_text, con=conn)
+    return pd.io.sql.read_sql(sql_text, con=conn).drop_duplicates()
 
 
 def load_data_with_word(id_list, begin_date, end_date, word):
@@ -76,7 +77,7 @@ def load_data_with_word(id_list, begin_date, end_date, word):
     conn = init_sql()
     sql_text = """SELECT * FROM T_DCR_Comment (nolock) WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and %s;""" %\
                (str(id_list), begin_date, end_date, word)
-    return pd.io.sql.read_sql(sql_text, con=conn)
+    return pd.io.sql.read_sql(sql_text, con=conn).drop_duplicates()
 
 
 def get_sentence(data):
@@ -87,6 +88,7 @@ def get_sentence(data):
     sql_text = """SELECT TreasureID, Sentence FROM T_DCR_Comment (nolock) WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and %s;""" % \
                (str(treasure_ids), data['begin_date'], data['end_date'], data['word'])
     df = pd.io.sql.read_sql(sql_text, con=conn)
+    df = df.drop_duplicates()
     return df.to_json(orient='records')
 
 
