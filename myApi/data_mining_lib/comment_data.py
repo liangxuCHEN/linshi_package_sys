@@ -69,7 +69,7 @@ def load_data(id_list, begin_date, end_date):
     conn = init_sql()
     sql_text = "SELECT * FROM T_DCR_Comment (nolock) " \
                "WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s';" % (str(id_list), begin_date, end_date)
-    return pd.io.sql.read_sql(sql_text, con=conn)
+    return pd.io.sql.read_sql(sql_text, con=conn).drop_duplicates()
 
 
 def load_data_with_word(id_list, begin_date, end_date, word):
@@ -77,7 +77,7 @@ def load_data_with_word(id_list, begin_date, end_date, word):
     conn = init_sql()
     sql_text = """SELECT * FROM T_DCR_Comment (nolock) WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and %s;""" %\
                (str(id_list), begin_date, end_date, word)
-    return pd.io.sql.read_sql(sql_text, con=conn)
+    return pd.io.sql.read_sql(sql_text, con=conn).drop_duplicates()
 
 
 def get_sentence(data):
@@ -88,6 +88,7 @@ def get_sentence(data):
     sql_text = """SELECT TreasureID, Sentence FROM T_DCR_Comment (nolock) WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and %s;""" % \
                (str(treasure_ids), data['begin_date'], data['end_date'], data['word'])
     df = pd.io.sql.read_sql(sql_text, con=conn)
+    df = df.drop_duplicates()
     return df.to_json(orient='records')
 
 
