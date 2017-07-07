@@ -10,3 +10,4 @@ static/
 myApi/migrations/
 *.json
 *.sh
+*.pid

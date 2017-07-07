@@ -1,8 +1,68 @@
 # encoding=utf8
-from base_tools import Mssql
+import pymssql
 from datetime import datetime as dt
 import uuid
 import json
+import sys
+
+reload(sys)
+sys.setdefaultencoding("utf-8")
+
+
+BOM_HOST = 'LS201510141838'
+BOM_HOST_USER = 'bsdb'
+BOM_HOST_PASSWORD = 'ls123123'
+BOM_DB = 'BSPRODUCTCENTER'
+
+
+class Mssql:
+    def __init__(self):
+        self.host = BOM_HOST
+        self.user = BOM_HOST_USER
+        self.pwd = BOM_HOST_PASSWORD
+        self.db = BOM_DB
+
+    def __get_connect(self):
+        if not self.db:
+            raise (NameError, "do not have db information")
+        self.conn = pymssql.connect(
+            host=self.host,
+            user=self.user,
+            password=self.pwd,
+            database=self.db,
+            charset="utf8"
+        )
+        cur = self.conn.cursor()
+        if not cur:
+            raise (NameError, "Have some Error")
+        else:
+            return cur
+
+    def exec_query(self, sql):
+        cur = self.__get_connect()
+        cur.execute(sql)
+        res_list = cur.fetchall()
+
+        # the db object must be closed
+        self.conn.close()
+        return res_list
+
+    def exec_non_query(self, sql):
+        cur = self.__get_connect()
+        cur.execute(sql)
+        self.conn.commit()
+        self.conn.close()
+
+    def exec_many_query(self, sql, param):
+        cur = self.__get_connect()
+        try:
+            cur.executemany(sql, param)
+            self.conn.commit()
+        except Exception as e:
+            print e
+            self.conn.rollback()
+
+        self.conn.close()
 
 
 def update_mix_status_time(guid):

@@ -1,4 +1,4 @@
-# encoding=utf8
+# encoding=utf-8
 import sys
 sys.path.append("/home/django/linshi_package_sys")
 from mrq.task import Task
@@ -33,7 +33,7 @@ class CreateTask(Task):
         if params["source_name"] == 'SingleUseRate':
 
             result = subtask("tasks.package.%s" % params["source_name"], {
-                "data": params["post_data"],
+                "data": params["data"],
                 'path': params["path"],
             })
 
@@ -77,13 +77,10 @@ class ProductRate(Task):
     def run(self, params):
         res_check = package_data_check(params.get("data"))
         if res_check['error']:
-            # 出错退出
             return res_check
         elif not res_check['row_id']:
-            # 所有条件相同直接退出
             return res_check
 
-        # 是否参数相同
         from myApi.models import Project
         from myApi.views import create_project
         from myApi.my_rectpack_lib.sql import update_mix_status_result, update_mix_status
@@ -93,7 +90,6 @@ class ProductRate(Task):
             if project.comment != params.get("data")['project_comment']:
                 project.comment = params.get("data")['project_comment']
                 all_products = project.products.all()
-                # 新建一个项目，与原来项目一样，只是换了一个描述
                 project.pk = None
                 project.save()
                 for product in all_products:
@@ -102,7 +98,6 @@ class ProductRate(Task):
                 project.save()
 
             content = BASE_URL + 'project_detail/' + str(project.id)
-            # 更新数据库
             update_mix_status_result(res_check['row_id'], content)
             return content
 
@@ -118,7 +113,6 @@ class ProductRate(Task):
             try:
                 project_id = create_project(res, params.get("data"), params.get("filename"))
                 url_res = BASE_URL + 'project_detail/' + str(project_id)
-                # 更新数据库
                 update_mix_status_result(res_check['row_id'], url_res)
             except:
                 update_mix_status(guid=res_check['row_id'], status=u'保存结果出错')

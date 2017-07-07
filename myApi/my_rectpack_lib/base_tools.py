@@ -7,6 +7,9 @@ from matplotlib.figure import Figure
 import matplotlib.patches as patches
 from django_api import settings
 from myApi import my_settings
+#import sys 
+#reload(sys) 
+#sys.setdefaultencoding('utf-8') 
 
 
 SIDE_CUT = 10  # 板材的切边宽带

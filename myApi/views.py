@@ -656,6 +656,7 @@ def create_job(request):
         return render(request, 'create_job.html')
 
 
+@csrf_exempt
 def product_use_rate_job(request):
     if request.method == 'POST':
         # # 数据检查
@@ -697,7 +698,7 @@ def product_use_rate_job(request):
         taskparams['source_name'] = 'ProductRate'
 
         job_id = queue_job("tasks.package.CreateTask", taskparams)
-        return HttpResponse(json.dumps({'job_id': job_id}), content_type="application/json")
+        return HttpResponse(json.dumps({'job_id': str(job_id)}), content_type="application/json")
     else:
         form = AlgoForm()
         return render(request, 'product_use_rate_demo.html', {'form': form})

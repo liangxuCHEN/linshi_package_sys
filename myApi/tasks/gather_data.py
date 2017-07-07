@@ -1,3 +1,4 @@
+# encoding=utf-8
 from mrq.task import Task
 from mrq.context import log
 
