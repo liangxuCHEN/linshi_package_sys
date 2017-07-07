@@ -501,7 +501,7 @@ def insert_mix_status(paramets, user_name, other):
     return row_id
 
 
-def run_product_rate_task(input_data, guid, filename, path):
+def run_product_rate_task(input_data, guid, path):
     created = dt.today()
     #log_run = log_init('mix_rate%s.log' % created.strftime('%Y_%m_%d'))
     log.info('read the db...')

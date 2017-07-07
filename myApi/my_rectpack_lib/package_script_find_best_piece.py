@@ -27,7 +27,6 @@ def get_data(bom_version=None):
                                                            bom_version=bom_version)
     else:
         sql_text = "select * From T_BOM_PlateUtilState where Status='%s'" % BEGIN_STATUS.encode('utf8')
-        print sql_text
     res = conn.exec_query(sql_text)
     content = list()
     for input_data in res:
@@ -416,12 +415,10 @@ def get_work_and_calc(post_data, only_one=True):
     result, log_work = generate_work(post_data)
     yield result
     if not result['IsErr']:
-        print only_one
         if only_one:
             rows = get_data(bom_version=result['data'][0]['BOMVersion'])
         else:
             rows = get_data()
-            print 'all rows'
         log_work.info('connect to the DB and get the data, there are %d works today' % len(rows))
         yield u'<p>一共有%d任务</p>' % len(rows)
         # TODO：队列任务修改，每一个循环一个任务
