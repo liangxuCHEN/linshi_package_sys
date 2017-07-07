@@ -15,7 +15,8 @@ from django.views import generic
 from myApi.forms import AlgoForm, LearnCommentForm, PredictForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
 from myApi.my_rectpack_lib.package_tools import package_main_function, find_best_piece,\
-    package_data_check, update_mix_status_result, run_product_rate_task
+    package_data_check, run_product_rate_task
+from myApi.my_rectpack_lib.sql import update_mix_status_result
 from myApi.my_rectpack_lib.base_tools import del_same_data
 from myApi.my_rectpack_lib.package_script_find_best_piece import get_work_and_calc
 
