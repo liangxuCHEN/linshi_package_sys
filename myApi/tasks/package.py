@@ -8,15 +8,12 @@ import json
 import time
 import os
 from datetime import datetime as dt
+from myApi import my_settings
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
 from myApi.my_rectpack_lib.package_tools import run_product_rate_task, package_data_check, package_main_function
 from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work, get_data, find_best_piece, multi_piece
 
 BASE_URL = 'http://192.168.3.172:8089/'
-BEGIN_STATUS = u'新任务'
-OK_STATUS = u'运算结束'
-CALC_ERROR_STATUS = u'计算出错'
-NO_NUM_STATUS = u'没有找到最佳数量'
 BASE_DIR = '/home/django/linshi_package_sys'
 
 
@@ -175,6 +172,7 @@ class FindBestPieceQueen(BaseTask):
         from myApi.my_rectpack_lib.sql import update_result
 
         rows = None
+        output_result = []
         subtask = wait_for_job
         if params.get('only_one'):
             res_data = generate_work(params.get("data"))
@@ -195,7 +193,7 @@ class FindBestPieceQueen(BaseTask):
                 content_2['SkuCode'] = input_data['SkuCode']
                 content_2['Created'] = dt.today()
                 if res_task['error']:
-                    content_2['status'] = NO_NUM_STATUS
+                    content_2['status'] = my_settings.NO_NUM_STATUS
                     update_result(content_2)
                     log.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
 
@@ -203,39 +201,61 @@ class FindBestPieceQueen(BaseTask):
                     log.info('finish work BOMVersion=%s, best piece is %d and begin to draw the solution' % (
                         input_data['BOMVersion'], res_task['result']['piece']))
                     content_2['best_num'] = res_task['result']['piece']
-                    # TODO:new post product rate job, 拿到job id 等待计算结束，取得project id， 再去找结果
+                    # new post product rate job, 拿到job id 等待计算结束，取得project id， 再去找结果
                     try:
                         res_product, values, filename = run_product_rate_func(Project,
                             res_task['result']['piece'], input_data['ShapeData'],
                             input_data['BinData'], comment=input_data['Product'])
-                        if res_product['error']:
-                            log.info(None, None, res_product['info'])
-                            continue
-                        else:
-                            # 返回每种材料的平均利用率
-                            rates = {}
-                            try:
-                                if 'statistics_data' in res_product.keys():
-                                    for res in res_product['statistics_data']:
-                                        tmp_list = res['rates'].split(', ')
-                                        tmp_list = [float(x) for x in tmp_list]
-                                        rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
-                                    project_id = create_project(res_product, values, filename)
-                                else:
-                                    log.info(None, rates, u'保存项目展示页面出错, 缺少统计数据')
-                                    continue
-                            except:
-                                log.info(None, rates, u'保存项目展示页面出错')
-                                continue
 
-                            log.info('project_detail/%d' % project_id, rates, u'运算结束')
-                            continue
                     except Exception as e:
                         log.error(e)
                         content_2['status'] = u'生产项目详细页面出错'
                         update_result(content_2)
                         continue
-        return True
+
+                    if res_product['error']:
+                        log.error(res_product)
+                        log.error(e)
+                        content_2['status'] = u'生产项目详细页面出错'
+                        update_result(content_2)
+
+                    else:
+                        # 返回每种材料的平均利用率
+                        rates = {}
+                        try:
+                            if 'statistics_data' in res_product.keys():
+                                for res in res_product['statistics_data']:
+                                    tmp_list = res['rates'].split(', ')
+                                    tmp_list = [float(x) for x in tmp_list]
+                                    rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
+                                project_id = create_project(res_product, values, filename)
+                            else:
+                                log.error('without statistics_data')
+                                log.error(res_product)
+                                content_2['status'] = u'保存项目展示页面出错, 缺少统计数据'
+                                update_result(content_2)
+                                continue
+                        except:
+                            log.error('has error during calculating the rates')
+                            log.error(res_product)
+                            content_2['status'] = u'保存项目展示页面出错'
+                            update_result(content_2)
+                            continue
+
+                        content_2['status'] = my_settings.OK_STATUS
+                        content_2['url'] = res_product['url']
+                        content_2['rates'] = list()
+                        if content_2['status'] == my_settings.OK_STATUS:
+                            for skucode, rate in rates.items():
+                                content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
+
+                        log.info('finish Bom: %s  and the new project id is %s' % (
+                            input_data['BOMVersion'], str(project_id)))
+                        output_result.append(content_2)
+                        update_result(content_2)
+                        continue
+
+        return output_result
 
 
 class FindBestPiece(Task):
@@ -258,9 +278,7 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
         if type(comment) == type('string'):
             comment += ' 最优利用率推荐生产数量=%d' % num_piece
 
-    # TODO:改为task job
     # 是否参数相同
-
     project = project_model.objects.filter(data_input=s_data + b_data).last()
     if project:
         all_products = project.products.all()
@@ -279,7 +297,8 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
             tmp_list = p.rates.split(', ')
             tmp_list = [float(x) for x in tmp_list]
             rates[str(p.sheet_name.split(' ')[0])] = sum(tmp_list) / len(tmp_list)
-        return url, rates, u'运算结束'
+
+        return {'url': url, 'rates': rates}, None, None
 
     filename = str(time.time()).split('.')[0]
     path = os.path.join(BASE_DIR, 'static')
@@ -297,3 +316,4 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
         'filename': filename,
     })
     return results, values, filename
+

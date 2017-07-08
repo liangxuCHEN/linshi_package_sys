@@ -11,15 +11,12 @@ from package import PackerSolution
 import single_use_rate
 from base_tools import draw_one_pic, use_rate, find_the_same_position, log_init
 from sql import update_mix_status, update_mix_status_time, insert_mix_status, Mssql
-
 from mrq.context import log
 
 
 EMPTY_BORDER = 5
 SIDE_CUT = 10  # 板材的切边宽带
 EFFECTIVE_RATE = 0.5  # 余料的有效率
-NUM_SAVE = 5
-MAX_VAR_RATE = 0.0001   # produce env  MAX_VAR_RATE = 0.00001
 
 
 def empty_ares(empty_section):
@@ -348,54 +345,54 @@ def package_main_function(input_data, pathname):
         return {'error': True, 'info': packer.error_info()}
 
 
-def find_best_piece(input_data):
-    # 保存之前的五个结果，求方差
-    rate_res = list()
-    num_pic = 1
-    best_pic = 1
-    best_rate = 0
-    best_rates = None
-    while True:
-        # 创建分析对象
-        packer = PackerSolution(
-            input_data['shape_data'],
-            input_data['bin_data'],
-            border=int(input_data['border']),
-            num_pic=num_pic
-        )
-        if packer.is_valid():
-            # 选择几种经常用的算法
-            res = packer.find_solution(algo_list=[0, 4, 40, 8, 20, 44, 24])
-            # 平均使用率
-            total_rate = 0
-            for data in res:
-                total_rate += data['rate']
-            tmp_avg_rate = total_rate / len(res)
-
-            # 记录最大值
-            if best_rate < tmp_avg_rate:
-                best_rate = tmp_avg_rate
-                best_pic = num_pic
-                best_rates = [(data['bin_key'], data['rate']) for data in res]
-
-            if num_pic > NUM_SAVE:
-                rate_res.append(tmp_avg_rate)
-                np_arr = np.array(rate_res[-1 * NUM_SAVE:])
-                var_rate = np_arr.var()
-                if var_rate < MAX_VAR_RATE:
-                    # 少于阈值返回最佳值
-                    return {
-                        'error': False,
-                        'piece': best_pic,
-                        'rates': best_rates
-                    }
-            else:
-                rate_res.append(tmp_avg_rate)
-
-        else:
-            return {'error': True, 'info': packer.error_info()}
-
-        num_pic += 1
+# def find_best_piece(input_data):
+#     # 保存之前的五个结果，求方差
+#     rate_res = list()
+#     num_pic = 1
+#     best_pic = 1
+#     best_rate = 0
+#     best_rates = None
+#     while True:
+#         # 创建分析对象
+#         packer = PackerSolution(
+#             input_data['shape_data'],
+#             input_data['bin_data'],
+#             border=int(input_data['border']),
+#             num_pic=num_pic
+#         )
+#         if packer.is_valid():
+#             # 选择几种经常用的算法
+#             res = packer.find_solution(algo_list=[0, 4, 40, 8, 20, 44, 24])
+#             # 平均使用率
+#             total_rate = 0
+#             for data in res:
+#                 total_rate += data['rate']
+#             tmp_avg_rate = total_rate / len(res)
+#
+#             # 记录最大值
+#             if best_rate < tmp_avg_rate:
+#                 best_rate = tmp_avg_rate
+#                 best_pic = num_pic
+#                 best_rates = [(data['bin_key'], data['rate']) for data in res]
+#
+#             if num_pic > NUM_SAVE:
+#                 rate_res.append(tmp_avg_rate)
+#                 np_arr = np.array(rate_res[-1 * NUM_SAVE:])
+#                 var_rate = np_arr.var()
+#                 if var_rate < MAX_VAR_RATE:
+#                     # 少于阈值返回最佳值
+#                     return {
+#                         'error': False,
+#                         'piece': best_pic,
+#                         'rates': best_rates
+#                     }
+#             else:
+#                 rate_res.append(tmp_avg_rate)
+#
+#         else:
+#             return {'error': True, 'info': packer.error_info()}
+#
+#         num_pic += 1
 
 
 def package_data_check(input_data):

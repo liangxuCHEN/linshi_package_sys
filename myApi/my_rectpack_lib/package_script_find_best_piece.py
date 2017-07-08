@@ -10,15 +10,8 @@ from package import PackerSolution
 from myApi import my_settings
 from myApi.tools import send_mail
 from package_tools import multi_piece
-from sql import Mssql, has_same_work, find_skucode, update_new_work, insert_work,\
-    update_running_work, insert_same_data, get_data
+from sql import has_same_work, find_skucode, update_new_work, insert_work, insert_same_data
 from mrq.context import log
-
-BEGIN_STATUS = u'新任务'
-OK_STATUS = u'运算结束'
-CALC_ERROR_STATUS = u'计算出错'
-NO_NUM_STATUS = u'没有找到最佳数量'
-
 
 
 def find_best_piece(shape_data, bin_data, border=5):
@@ -167,7 +160,7 @@ def generate_work(input_data):
             # 如果BOMVersion相同，直接返回结果, BOMVersion不相同，如果状态是运算结束，写入详细结果
             # 如果不行就要重新计算
             if res[0][0] != data['BOMVersion']:
-                if res[0][1] == OK_STATUS:
+                if res[0][1] == my_settings.OK_STATUS:
                     insert_same_data(res[0][0], res[0][2], data, shape_data, bin_data, product_comment, res[0][3])
                 else:
                     # TODO;有相同数据计算在进行，等一下再查一下

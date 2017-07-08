@@ -14,7 +14,7 @@ from django.views import generic
 
 from myApi.forms import AlgoForm, LearnCommentForm, PredictForm
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
-from myApi.my_rectpack_lib.package_tools import package_main_function, find_best_piece,\
+from myApi.my_rectpack_lib.package_tools import package_main_function, \
     package_data_check, run_product_rate_task
 from myApi.my_rectpack_lib.sql import update_mix_status_result
 from myApi.my_rectpack_lib.base_tools import del_same_data
@@ -278,13 +278,13 @@ def product_use_rate_demo(request):
         return render(request, 'product_use_rate_demo.html', {'form': form})
 
 
-@csrf_exempt
-def best_piece(request):
-    if request.method == 'POST':
-        result = find_best_piece(request.POST)
-        return HttpResponse(json.dumps(result), content_type="application/json")
-    else:
-        return render(request, 'best_piece.html')
+# @csrf_exempt
+# def best_piece(request):
+#     if request.method == 'POST':
+#         result = find_best_piece(request.POST)
+#         return HttpResponse(json.dumps(result), content_type="application/json")
+#     else:
+#         return render(request, 'best_piece.html')
 
 
 # @csrf_exempt
