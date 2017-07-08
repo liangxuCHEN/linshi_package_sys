@@ -11,7 +11,7 @@ from myApi import my_settings
 from myApi.tools import send_mail
 from package_tools import multi_piece
 from sql import Mssql, has_same_work, find_skucode, update_new_work, insert_work,\
-    update_running_work, insert_same_data
+    update_running_work, insert_same_data, get_data
 from mrq.context import log
 
 BEGIN_STATUS = u'新任务'
@@ -19,31 +19,6 @@ OK_STATUS = u'运算结束'
 CALC_ERROR_STATUS = u'计算出错'
 NO_NUM_STATUS = u'没有找到最佳数量'
 
-
-def get_data(bom_version=None):
-    # init output connection
-    conn = Mssql()
-    if bom_version:
-        sql_text = "select * From T_BOM_PlateUtilState where Status='{status}' " \
-                   "and BOMVersion='{bom_version}'".format(status=BEGIN_STATUS.encode('utf8'),
-                                                           bom_version=bom_version)
-    else:
-        sql_text = "select * From T_BOM_PlateUtilState where Status='%s'" % BEGIN_STATUS.encode('utf8')
-    res = conn.exec_query(sql_text)
-    content = list()
-    for input_data in res:
-        content.append({
-            'row_id': input_data[0],
-            'SkuCode': input_data[1],
-            'ShapeData': input_data[5],
-            'BinData': input_data[6],
-            'Created': dt.today(),
-            'Product': input_data[3],
-            'BOMVersion': input_data[2],
-        })
-
-    update_running_work(content)
-    return content
 
 
 def find_best_piece(shape_data, bin_data, border=5):

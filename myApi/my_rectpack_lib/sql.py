@@ -14,6 +14,12 @@ BOM_HOST_USER = 'bsdb'
 BOM_HOST_PASSWORD = 'ls123123'
 BOM_DB = 'BSPRODUCTCENTER'
 
+BEGIN_STATUS = u'新任务'
+OK_STATUS = u'运算结束'
+CALC_ERROR_STATUS = u'计算出错'
+NO_NUM_STATUS = u'没有找到最佳数量'
+
+
 
 class Mssql:
     def __init__(self):
@@ -165,6 +171,32 @@ def find_skucode(bon_version):
         conn.exec_non_query(sql_text)
 
 
+def get_data(bom_version=None):
+    # init output connection
+    conn = Mssql()
+    if bom_version:
+        sql_text = "select * From T_BOM_PlateUtilState where Status='{status}' " \
+                   "and BOMVersion='{bom_version}'".format(status=BEGIN_STATUS.encode('utf8'),
+                                                           bom_version=bom_version)
+    else:
+        sql_text = "select * From T_BOM_PlateUtilState where Status='%s'" % BEGIN_STATUS.encode('utf8')
+    res = conn.exec_query(sql_text)
+    content = list()
+    for input_data in res:
+        content.append({
+            'row_id': input_data[0],
+            'SkuCode': input_data[1],
+            'ShapeData': input_data[5],
+            'BinData': input_data[6],
+            'Created': dt.today(),
+            'Product': input_data[3],
+            'BOMVersion': input_data[2],
+        })
+
+    update_running_work(content)
+    return content
+
+
 def update_new_work(data):
     conn = Mssql()
 
@@ -232,3 +264,4 @@ def update_result(data):
         conn.exec_non_query(sql_text)
         sql_text = "insert into T_BOM_PlateUtilUsedRate values (%s, %s, %s, %s)"
         conn.exec_many_query(sql_text, data['rates'])
+
