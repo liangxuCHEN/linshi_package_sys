@@ -256,11 +256,14 @@ class FindBestPieceQueen(BaseTask):
                             for skucode, rate in rates.items():
                                 content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
 
-                        output_result.append(content_2)
+                        output_result.append({
+                            'Bon_version': str(content_2['BOMVersion']),
+                            'url': content_2['url']
+                        })
                         update_result(content_2)
                         continue
 
-        return output_result
+        return json.dumps(output_result)
 
 
 class FindBestPiece(Task):
