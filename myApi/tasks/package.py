@@ -78,7 +78,7 @@ class CreateTask(Task):
         if params["source_name"] == 'FindBestPieceQueen':
 
             result = subtask("tasks.package.%s" % params["source_name"], {
-                "data": params["data"],
+                "data": params["post_data"],
                 'only_one': params["only_one"],
             })
 
