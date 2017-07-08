@@ -3,8 +3,8 @@ import pymssql
 from datetime import datetime as dt
 import uuid
 import json
+from mrq.context import log
 import sys
-
 reload(sys)
 sys.setdefaultencoding("utf-8")
 
@@ -85,6 +85,7 @@ def update_mix_status_result(guid, url):
     sql_text = """UPDATE T_BOM_PlateUtilMixedState SET
     UpdateDate='{update_time}', Url='{url}', Status='{status}' WHERE Guid='{guid}'""".format(
         guid=guid, status=u'运算结束', url=url, update_time=update_time.strftime('%Y-%m-%d %H:%M:%S'))
+    log.info(sql_text)
     conn.exec_non_query(sql_text)
 
 

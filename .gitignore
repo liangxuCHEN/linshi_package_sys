@@ -11,3 +11,4 @@ myApi/migrations/
 *.json
 *.sh
 *.pid
+:w:
