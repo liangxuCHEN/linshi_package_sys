@@ -411,6 +411,13 @@ def package_data_check(input_data):
     except Exception as e:
         update_mix_status(status=u'缺少参数')
         return {'error': True, 'info': u'缺少参数'}
+
+    try:
+        comments = json.loads(input_data['project_comment'])
+    except Exception as e:
+        update_mix_status(status=u'项目描述project_comment json结构不对')
+        return {'error': True, 'info': u'project_comment的json结构不对'}
+
     # 是否有重复
     conn = Mssql()
     sql_text = """SELECT Guid, CreateUser FROM T_BOM_PlateUtilMixedState WHERE
@@ -434,10 +441,10 @@ def package_data_check(input_data):
             update_mix_status_time(user_guid)
         else:
             # 新任务
-            row_id = insert_mix_status(parm, user, other)
+            row_id = insert_mix_status(parm, comments, user, other)
     else:
         # 新任务
-        row_id = insert_mix_status(parm, user, other)
+        row_id = insert_mix_status(parm, comments, user, other)
 
     return {'error': False, 'row_id': row_id}
 
@@ -461,22 +468,6 @@ def run_product_rate_task(input_data, guid, path):
         return results
     else:
         return results
-        #try:
-            #log.info('create a project...')
-            # yield '<p>create a project...</p>'
-            # post url
-            # project_id = create_project(results, input_data, file_name)
-            # log.info('project save ..')
-            # yield '<p>project save ...</p>'
-            # url_res = my_settings.BASE_URL + 'project_detail/' + str(project_id)
-            # 更新数据库
-            # update_mix_status_result(guid, url_res)
-            # yield '<p>finish the job...</p>'
-        #except:
-            #log_run.info('can not create a project...')
-            #yield '<p>can not create a project...</p>'
-            #update_mix_status(guid=guid, status=u'保存结果出错')
-
 
 # TODO：改成Http post
 # def create_project(results, post_data, filename):

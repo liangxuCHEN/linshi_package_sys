@@ -101,7 +101,7 @@ def update_mix_status(guid=None, status=None):
     conn.exec_non_query(sql_text)
 
 
-def insert_mix_status(paramets, user_name, other):
+def insert_mix_status(paramets, comments, user_name, other):
     created = dt.today()
     conn = Mssql()
     row_id = uuid.uuid4()
@@ -111,8 +111,6 @@ def insert_mix_status(paramets, user_name, other):
         paramets['shape_data'], paramets['bin_data'], other)
     conn.exec_non_query(sql_text)
 
-    # 更新明细
-    comments = json.loads(paramets['comment'])
     # 整理数据
     insert_data = list()
     for data in comments:

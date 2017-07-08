@@ -302,14 +302,6 @@ def product_use_rate_demo(request):
 #         return render(request, 'add_work.html')
 #
 #
-# def save_work_all(request):
-#     if request.method == 'POST':
-#         resp = StreamingHttpResponse(get_work_and_calc(request.POST, only_one=False))
-#         return resp
-#         # return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
-#     else:
-#         return render(request, 'save_work_all.html')
-
 
 def create_project(results, post_data, filename):
     # save project
@@ -704,3 +696,20 @@ def find_best_piece_job(request):
         # return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
     else:
         return render(request, 'add_work.html')
+
+
+def save_work_all(request):
+    """
+        求最佳生产数量,使用队列任务,启动所有新任务
+        :param request:
+        :return:
+        """
+    if request.method == 'POST':
+        taskparams = dict()
+        taskparams['post_data'] = request.POST
+        taskparams['only_one'] = False
+        taskparams['source_name'] = 'FindBestPieceQueen'
+        job_id = queue_job("tasks.package.CreateTask", taskparams)
+        return HttpResponse(json.dumps({'job_id': str(job_id)}), content_type="application/json")
+    else:
+        return render(request, 'save_work_all.html')
