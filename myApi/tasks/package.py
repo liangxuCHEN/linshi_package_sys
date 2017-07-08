@@ -148,7 +148,6 @@ class ProductRate(BaseTask):
 
         if res['error']:
             log.info(res['info'])
-            update_mix_status(guid=res_check['row_id'], status=my_settings.CALC_ERROR_STATUS)
         else:
             try:
                 project_id = create_project(res, params.get("data"), params.get("filename"))
