@@ -130,8 +130,8 @@ class ProductRate(BaseTask):
             content['project_id'] = str(project.id)
 
             if row_id:
-                content['guid'] = row_id
-                update_mix_status_result(row_id, content)
+                content['guid'] = str(row_id)
+                update_mix_status_result(row_id, url_res)
             return content
 
         if row_id:
@@ -155,7 +155,7 @@ class ProductRate(BaseTask):
                 res['url'] = url_res
                 res['project_id'] = project_id
                 if row_id:
-                    res['guid'] = row_id
+                    res['guid'] = str(row_id)
                     update_mix_status_result(row_id, url_res)
             except:
                 if row_id:
