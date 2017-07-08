@@ -9,7 +9,7 @@ import time
 import os
 from datetime import datetime as dt
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
-from myApi.my_rectpack_lib.package_tools import run_product_rate_task, package_data_check
+from myApi.my_rectpack_lib.package_tools import run_product_rate_task, package_data_check, package_main_function
 from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work, get_data, find_best_piece, multi_piece
 
 BASE_URL = 'http://192.168.3.172:8089/'
@@ -99,11 +99,16 @@ class ProductRate(BaseTask):
 
     def run(self, params):
         self.connect()
-        res_check = package_data_check(params.get("data"))
-        if res_check['error']:
-            return res_check
-        elif not res_check['row_id']:
-            return res_check
+        # has row id, need to save the result in other db
+        row_id = None
+        if 'userName' in params.get("data").keys():
+            res_check = package_data_check(params.get("data"))
+            if res_check['error']:
+                return res_check
+            elif not res_check['row_id']:
+                return res_check
+
+            row_id = res_check['row_id']
 
         from myApi.models import Project
         from myApi.views import create_project
@@ -121,15 +126,28 @@ class ProductRate(BaseTask):
 
                 project.save()
 
-            content = BASE_URL + 'project_detail/' + str(project.id)
-            update_mix_status_result(res_check['row_id'], content)
+            content = {}
+            url_res = BASE_URL + 'project_detail/' + str(project.id)
+            content['url'] = url_res
+            content['project_id'] = str(project.id)
+
+            if row_id:
+                content['guid'] = row_id
+                update_mix_status_result(row_id, content)
             return content
 
-        res = run_product_rate_task(
-            params.get("data"),
-            res_check['row_id'],
-            params.get("path"),
-        )
+        if row_id:
+            res = run_product_rate_task(
+                params.get("data"),
+                row_id,
+                params.get("path"),
+            )
+        else:
+            res = package_main_function(
+                params.get("data"),
+                params.get("path"),
+            )
+
         if res['error']:
             log.info('has some error during the work')
             update_mix_status(guid=res_check['row_id'], status=res['info'])
@@ -137,22 +155,25 @@ class ProductRate(BaseTask):
             try:
                 project_id = create_project(res, params.get("data"), params.get("filename"))
                 url_res = BASE_URL + 'project_detail/' + str(project_id)
-                update_mix_status_result(res_check['row_id'], url_res)
                 res['url'] = url_res
-                res['guid'] = res_check['row_id']
                 res['project_id'] = project_id
+                if row_id:
+                    res['guid'] = row_id
+                    update_mix_status_result(row_id, url_res)
             except:
-                update_mix_status(guid=res_check['row_id'], status=u'保存结果出错')
+                if row_id:
+                    update_mix_status(guid=row_id, status=u'保存结果出错')
         return res
 
 
 class FindBestPieceQueen(BaseTask):
 
     def run(self, params):
+        self.connect()
         from myApi.views import create_project
         from myApi.models import Project
         from myApi.my_rectpack_lib.sql import update_result
-        self.connect()
+
         rows = None
         subtask = wait_for_job
         if params.get('only_one'):

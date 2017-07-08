@@ -401,7 +401,6 @@ def find_best_piece(input_data):
 def package_data_check(input_data):
     # 数据库连接-检查数据库
     try:
-	print input_data
         parm = {
             'comment': input_data['project_comment'],
             'shape_data': input_data['shape_data'],
@@ -415,8 +414,6 @@ def package_data_check(input_data):
     except Exception as e:
         update_mix_status(status=u'缺少参数')
         return {'error': True, 'info': u'缺少参数'}
-    log.info( '+++++++++++++++++++++++++++++++++++++++++++')
-    log.info(parm['comment'])
     # 是否有重复
     conn = Mssql()
     sql_text = """SELECT Guid, CreateUser FROM T_BOM_PlateUtilMixedState WHERE
@@ -450,7 +447,7 @@ def package_data_check(input_data):
 
 def run_product_rate_task(input_data, guid, path):
     created = dt.today()
-    #log_run = log_init('mix_rate%s.log' % created.strftime('%Y_%m_%d'))
+    # log_run = log_init('mix_rate%s.log' % created.strftime('%Y_%m_%d'))
     log.info('read the db...')
     update_mix_status(guid=guid, status=u'计算中')
     # yield '<p>Working on the job guid=%s </p>' % guid
