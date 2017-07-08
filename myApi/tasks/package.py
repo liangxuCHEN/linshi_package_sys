@@ -295,7 +295,7 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
                 project.products.add(product)
             project.save()
 
-        url = 'project_detail/' + str(project.id)
+        url = BASE_URL + 'project_detail/' + str(project.id)
         # 需要rate
         rates = {}
         for p in all_products:
