@@ -71,14 +71,14 @@ class CreateTask(Task):
                 "data": params["post_data"],
                 'path': params["path"],
                 'filename': params["filename"],
-            }, queue_job='product_rate')
+            }, queue='product_rate')
 
         if params["source_name"] == 'FindBestPieceQueen':
 
             result = subtask("tasks.package.%s" % params["source_name"], {
                 "data": params["post_data"],
                 'only_one': params["only_one"],
-            }, queue_job='best_num')
+            }, queue='best_num')
 
         return result
 
@@ -188,7 +188,7 @@ class FindBestPieceQueen(BaseTask):
                 res_task = subtask("tasks.package.FindBestPiece", {
                     "shape_data": input_data['ShapeData'],
                     'bin_data': input_data['BinData'],
-                }, queue_job='best_num')
+                }, queue='best_num')
                 content_2['BOMVersion'] = input_data['BOMVersion']
                 content_2['SkuCode'] = input_data['SkuCode']
                 content_2['Created'] = dt.today()
@@ -321,7 +321,7 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
         "data": values,
         'path': path,
         'filename': filename,
-    }, queue_job='product_rate')
+    }, queue='product_rate')
 
     return results, values, filename
 
