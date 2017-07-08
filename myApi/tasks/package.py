@@ -11,7 +11,8 @@ from datetime import datetime as dt
 from myApi import my_settings
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
 from myApi.my_rectpack_lib.package_tools import run_product_rate_task, package_data_check, package_main_function
-from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work, get_data, find_best_piece, multi_piece
+from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work,find_best_piece, multi_piece
+from myApi.my_rectpack_lib.sql import get_data
 
 BASE_URL = 'http://192.168.3.172:8089/'
 BASE_DIR = '/home/django/linshi_package_sys'
@@ -221,26 +222,32 @@ class FindBestPieceQueen(BaseTask):
 
                     else:
                         # 返回每种材料的平均利用率
-                        rates = {}
-                        try:
-                            if 'statistics_data' in res_product.keys():
-                                for res in res_product['statistics_data']:
-                                    tmp_list = res['rates'].split(', ')
-                                    tmp_list = [float(x) for x in tmp_list]
-                                    rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
-                                project_id = create_project(res_product, values, filename)
-                            else:
-                                log.error('without statistics_data')
+                        # 如果已经存在相同项目，就直接保存
+                        if 'rates' not in res_product.keys():
+                            rates = {}
+                            try:
+                                if 'statistics_data' in res_product.keys():
+                                    for res in res_product['statistics_data']:
+                                        tmp_list = res['rates'].split(', ')
+                                        tmp_list = [float(x) for x in tmp_list]
+                                        rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
+                                    project_id = create_project(res_product, values, filename)
+                                    log.info('finish Bom: %s  and the new project id is %s' % (
+                                        input_data['BOMVersion'], str(project_id)))
+                                else:
+                                    log.error('without statistics_data')
+                                    log.error(res_product)
+                                    content_2['status'] = u'保存项目展示页面出错, 缺少统计数据'
+                                    update_result(content_2)
+                                    continue
+                            except:
+                                log.error('has error during calculating the rates')
                                 log.error(res_product)
-                                content_2['status'] = u'保存项目展示页面出错, 缺少统计数据'
+                                content_2['status'] = u'保存项目展示页面出错'
                                 update_result(content_2)
                                 continue
-                        except:
-                            log.error('has error during calculating the rates')
-                            log.error(res_product)
-                            content_2['status'] = u'保存项目展示页面出错'
-                            update_result(content_2)
-                            continue
+                        else:
+                            rates = res_product['rates']
 
                         content_2['status'] = my_settings.OK_STATUS
                         content_2['url'] = res_product['url']
@@ -249,8 +256,6 @@ class FindBestPieceQueen(BaseTask):
                             for skucode, rate in rates.items():
                                 content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
 
-                        log.info('finish Bom: %s  and the new project id is %s' % (
-                            input_data['BOMVersion'], str(project_id)))
                         output_result.append(content_2)
                         update_result(content_2)
                         continue
@@ -298,7 +303,7 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
             tmp_list = [float(x) for x in tmp_list]
             rates[str(p.sheet_name.split(' ')[0])] = sum(tmp_list) / len(tmp_list)
 
-        return {'url': url, 'rates': rates}, None, None
+        return {'url': url, 'rates': rates, 'error':False}, None, None
 
     filename = str(time.time()).split('.')[0]
     path = os.path.join(BASE_DIR, 'static')
@@ -315,5 +320,6 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
         'path': path,
         'filename': filename,
     })
+
     return results, values, filename
 
