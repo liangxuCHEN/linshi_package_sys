@@ -18,7 +18,6 @@ from myApi.my_rectpack_lib.package_tools import package_main_function, find_best
     package_data_check, run_product_rate_task
 from myApi.my_rectpack_lib.sql import update_mix_status_result
 from myApi.my_rectpack_lib.base_tools import del_same_data
-from myApi.my_rectpack_lib.package_script_find_best_piece import get_work_and_calc
 
 from myApi.models import Userate, ProductRateDetail, Project
 from myApi.data_mining_lib.comment_data import main_process as calc_comment,\
@@ -631,7 +630,12 @@ class ProjectIndexView(generic.ListView):
     context_object_name = "project_list"
 
 
-def create_job(request):
+def single_use_rate_job(request):
+    """
+    单板设计的利用率-队列任务
+    :param request:
+    :return:
+    """
     if request.method == 'POST':
         taskpath = request.POST.get('path')
         taskparams = json.loads(request.POST.get('params'))
@@ -658,35 +662,12 @@ def create_job(request):
 
 @csrf_exempt
 def product_use_rate_job(request):
+    """
+    产品利用率-进入队列任务
+    :param request:
+    :return:
+    """
     if request.method == 'POST':
-        # # 数据检查
-        # res_check = package_data_check(request.POST)
-        # if res_check['error']:
-        #     # 出错退出
-        #     return HttpResponse(json.dumps(res_check), content_type="application/json")
-        # elif not res_check['row_id']:
-        #     # 所有条件相同直接退出
-        #     return HttpResponse(json.dumps(res_check), content_type="application/json")
-        #
-        # # 是否参数相同
-        # project = Project.objects.filter(data_input=request.POST['shape_data'] + request.POST['bin_data']).last()
-        # if project:
-        #     if project.comment != request.POST.get('project_comment'):
-        #         project.comment = request.POST.get('project_comment')
-        #         all_products = project.products.all()
-        #         # 新建一个项目，与原来项目一样，只是换了一个描述
-        #         project.pk = None
-        #         project.save()
-        #         for product in all_products:
-        #             project.products.add(product)
-        #
-        #         project.save()
-        #
-        #     content = 'http://119.145.166.182:8090/project_detail/%d' % project.id
-        #     # 更新数据库
-        #     update_mix_status_result(res_check['row_id'], content)
-        #     return HttpResponse(json.dumps(content), content_type="application/json")
-
         filename = str(time.time()).split('.')[0]
         path = os.path.join(settings.BASE_DIR, 'static')
         path = os.path.join(path, filename)
@@ -702,3 +683,24 @@ def product_use_rate_job(request):
     else:
         form = AlgoForm()
         return render(request, 'product_use_rate.html', {'form': form})
+
+
+@csrf_exempt
+def find_best_piece_job(request):
+    """
+    求最佳生产数量,使用队列任务
+    :param request:
+    :return:
+    """
+    if request.method == 'POST':
+        taskparams = dict()
+        taskparams['post_data'] = request.POST
+        taskparams['only_one'] = True
+        taskparams['source_name'] = 'FindBestPieceQueen'
+        job_id = queue_job("tasks.package.CreateTask", taskparams)
+        return HttpResponse(json.dumps({'job_id': str(job_id)}), content_type="application/json")
+        # resp = StreamingHttpResponse(get_work_and_calc(request.POST, only_one=True))
+        # return resp
+        # return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
+    else:
+        return render(request, 'add_work.html')

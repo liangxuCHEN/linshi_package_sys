@@ -7,9 +7,6 @@ from matplotlib.figure import Figure
 import matplotlib.patches as patches
 from django_api import settings
 from myApi import my_settings
-#import sys 
-#reload(sys) 
-#sys.setdefaultencoding('utf-8') 
 
 
 SIDE_CUT = 10  # 板材的切边宽带
@@ -153,53 +150,3 @@ def log_init(file_name):
                         filename=file_name,
                         filemode='a+')
     return logging
-
-
-class Mssql:
-    def __init__(self):
-        self.host = my_settings.BOM_HOST
-        self.user = my_settings.BOM_HOST_USER
-        self.pwd = my_settings.BOM_HOST_PASSWORD
-        self.db = my_settings.BOM_DB
-
-    def __get_connect(self):
-        if not self.db:
-            raise (NameError, "do not have db information")
-        self.conn = pymssql.connect(
-            host=self.host,
-            user=self.user,
-            password=self.pwd,
-            database=self.db,
-            charset="utf8"
-        )
-        cur = self.conn.cursor()
-        if not cur:
-            raise (NameError, "Have some Error")
-        else:
-            return cur
-
-    def exec_query(self, sql):
-        cur = self.__get_connect()
-        cur.execute(sql)
-        res_list = cur.fetchall()
-
-        # the db object must be closed
-        self.conn.close()
-        return res_list
-
-    def exec_non_query(self, sql):
-        cur = self.__get_connect()
-        cur.execute(sql)
-        self.conn.commit()
-        self.conn.close()
-
-    def exec_many_query(self, sql, param):
-        cur = self.__get_connect()
-        try:
-            cur.executemany(sql, param)
-            self.conn.commit()
-        except Exception as e:
-            print e
-            self.conn.rollback()
-
-        self.conn.close()

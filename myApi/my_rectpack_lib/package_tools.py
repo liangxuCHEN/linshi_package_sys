@@ -10,18 +10,16 @@ from datetime import datetime as dt
 from package import PackerSolution
 import single_use_rate
 from base_tools import draw_one_pic, use_rate, find_the_same_position, log_init
-from sql import update_mix_status, update_mix_status_time, insert_mix_status,Mssql
+from sql import update_mix_status, update_mix_status_time, insert_mix_status, Mssql
 
 from mrq.context import log
-# from django_api import settings
-# from myApi.models import Project, ProductRateDetail
+
 
 EMPTY_BORDER = 5
 SIDE_CUT = 10  # 板材的切边宽带
 EFFECTIVE_RATE = 0.5  # 余料的有效率
-# produce env = 0.00001
 NUM_SAVE = 5
-MAX_VAR_RATE = 0.0001
+MAX_VAR_RATE = 0.0001   # produce env  MAX_VAR_RATE = 0.00001
 
 
 def empty_ares(empty_section):
@@ -527,70 +525,6 @@ def multi_piece(num_piece, shape_data, bin_data):
     return shape_data, bin_data
 
 
-def run_product_rate_func(num_piece, shape_data, bin_data, comment):
-    pass
-#     # 整理input data
-#     s_data, b_data = multi_piece(num_piece, shape_data, bin_data)
-
-#     # 添加最优生产数量
-#     try:
-#         comment = json.loads(comment)
-#         comment['Amount'] = num_piece
-#         comment = json.dumps(comment, ensure_ascii=False)
-#     except:
-#         if type(comment) == type('string'):
-#             comment += ' 最优利用率推荐生产数量=%d' % num_piece
-
-#     # TODO:改为http post
-#     # 是否参数相同
-#     project = Project.objects.filter(data_input=s_data + b_data).last()
-#     if project:
-#         all_products = project.products.all()
-#         if project.comment != comment:
-#             project.comment = comment
-#             project.pk = None
-#             project.save()
-#             for product in all_products:
-#                 project.products.add(product)
-#             project.save()
-
-#         url = 'project_detail/' + str(project.id)
-#         # 需要rate
-#         rates = {}
-#         for p in all_products:
-#             tmp_list = p.rates.split(', ')
-#             tmp_list = [float(x) for x in tmp_list]
-#             rates[str(p.sheet_name.split(' ')[0])] = sum(tmp_list) / len(tmp_list)
-#         return url, rates, u'运算结束'
-
-#     filename = str(time.time()).split('.')[0]
-#     path = os.path.join(settings.BASE_DIR, 'static')
-#     path = os.path.join(path, filename)
-#     values = {
-#         'project_comment': comment,
-#         'border': 5,
-#         'shape_data': s_data,
-#         'bin_data': b_data
-#     }
-#     results = package_main_function(values, pathname=path)
-#     if results['error']:
-#         return None, None, results['info']
-#     else:
-#         # 返回每种材料的平均利用率
-#         rates = {}
-#         try:
-#             if 'statistics_data' in results.keys():
-#                 for res in results['statistics_data']:
-#                     tmp_list = res['rates'].split(', ')
-#                     tmp_list = [float(x) for x in tmp_list]
-#                     rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
-#                 project_id = create_project(results, values, filename)
-#             else:
-#                 return None, rates, u'保存项目展示页面出错, 缺少统计数据'
-#         except:
-#             return None, rates, u'保存项目展示页面出错'
-
-#         return 'project_detail/%d' % project_id, rates, u'运算结束'
 
 
 # def http_post_test(num_piece, shape_data, bin_data, comment=None):
