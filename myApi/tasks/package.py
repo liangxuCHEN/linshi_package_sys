@@ -73,7 +73,7 @@ class CreateTask(Task):
                 'path': params["path"],
                 'filename': params["filename"],
             }, queue='product_rate')
-            return {'job_id': str(job_id)}
+            return json.dumps({'job_id': str(job_id)})
 
         if params["source_name"] == 'FindBestPieceQueen':
             job_id = queue_job("tasks.package.%s" % params["source_name"], {
@@ -81,7 +81,7 @@ class CreateTask(Task):
                 'only_one': params["only_one"],
             }, queue='best_num')
 
-            return {'job_id': str(job_id)}
+            return json.dumps({'job_id': str(job_id)})
 
 
 class SingleUseRate(Task):
@@ -124,7 +124,7 @@ class ProductRate(BaseTask):
                 content['url'] = url_res
                 content['project_id'] = str(project.id)
 
-                return content
+                return json.dumps(content)
 
         if row_id:
             res = run_product_rate_task(
@@ -194,7 +194,7 @@ class FindBestPiece(BaseTask):
         # 寻找最佳生产数量
         error, result = find_best_piece(input_data["ShapeData"], input_data["BinData"])
 
-        content_2['BOMVersion'] = input_data['BOMVersion']
+        content_2['BOMVersion'] = str(input_data['BOMVersion'])
         content_2['SkuCode'] = input_data['SkuCode']
         content_2['Created'] = dt.today()
 
@@ -301,7 +301,7 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
             tmp_list = [float(x) for x in tmp_list]
             rates[str(p.sheet_name.split(' ')[0])] = sum(tmp_list) / len(tmp_list)
 
-        return {'url': url, 'rates': rates, 'error':False}, None, None
+        return {'url': url, 'rates': rates, 'error': False}, None, None
 
     filename = str(time.time()).split('.')[0]
     path = os.path.join(BASE_DIR, 'static')
