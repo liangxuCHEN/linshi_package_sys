@@ -196,7 +196,7 @@ class FindBestPiece(BaseTask):
         # 寻找最佳生产数量
         error, result = find_best_piece(input_data["ShapeData"], input_data["BinData"])
 
-        content_2['BOMVersion'] = str(input_data['BOMVersion'])
+        content_2['BOMVersion'] = input_data['BOMVersion']
         content_2['SkuCode'] = input_data['SkuCode']
         content_2['Created'] = dt.today()
 

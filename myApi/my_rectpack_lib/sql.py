@@ -203,7 +203,7 @@ def get_data(bom_version=None):
             'BinData': input_data[6],
             'Created': dt.today(),
             'Product': input_data[3],
-            'BOMVersion': input_data[2],
+            'BOMVersion': str(input_data[2]),
         })
 
     update_running_work(content)
