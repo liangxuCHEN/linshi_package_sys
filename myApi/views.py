@@ -720,8 +720,8 @@ def find_best_piece_job(request):
         taskparams['post_data'] = request.POST
         taskparams['only_one'] = True
         taskparams['source_name'] = 'FindBestPieceQueen'
-        job_id = queue_job("tasks.package.CreateTask", taskparams)
-        return HttpResponse(json.dumps({'job_id': str(job_id)}), content_type="application/json", queue='product_rate')
+        job_id = queue_job("tasks.package.CreateTask", taskparams,queue='product_rate')
+        return HttpResponse(json.dumps({'job_id': str(job_id)}), content_type="application/json" )
     else:
         return render(request, 'add_work.html')
 

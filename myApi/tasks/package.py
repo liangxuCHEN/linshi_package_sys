@@ -163,7 +163,7 @@ class FindBestPieceQueen(BaseTask):
     def run(self, params):
         self.connect()
         rows = None
-        res_data = list()
+        output_data = list()
         if params.get('only_one'):
             # 先插入数据库  generate_work
             res_data = generate_work(params.get("data"))
@@ -180,8 +180,8 @@ class FindBestPieceQueen(BaseTask):
                     'input_data': input_data
                 }, queue='best_num')
                 log.info('job_id = %s' % str(job_id))
-                res_data.append({'job_id': str(job_id)})
-        return json.dumps(res_data)
+                output_data.append({'job_id': str(job_id)})
+        return json.dumps(output_data)
 
 
 class FindBestPiece(BaseTask):
