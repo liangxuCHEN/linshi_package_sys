@@ -67,11 +67,12 @@ class CreateTask(Task):
             return result
 
         if params["source_name"] == 'ProductRate':
-
+            row_id = params.get('row_id')
             job_id = queue_job("tasks.package.%s" % params["source_name"], {
                 "data": params["post_data"],
                 'path': params["path"],
                 'filename': params["filename"],
+                'row_id': row_id
             }, queue='product_rate')
             return json.dumps({'job_id': str(job_id)})
 
@@ -101,6 +102,7 @@ class ProductRate(BaseTask):
         # has row id, need to save the result in other db
         row_id = params.get("row_id")
 
+        log.info('row id = %s' % row_id)
         from myApi.models import Project
         from myApi.views import create_project
         from myApi.my_rectpack_lib.sql import update_mix_status_result, update_mix_status
@@ -148,7 +150,7 @@ class ProductRate(BaseTask):
                 res['url'] = url_res
                 res['project_id'] = project_id
                 if row_id:
-                    res['guid'] = str(row_id)
+                    res['guid'] = row_id
                     update_mix_status_result(row_id, url_res)
             except:
                 if row_id:

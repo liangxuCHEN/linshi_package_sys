@@ -698,7 +698,7 @@ def product_use_rate_job(request):
         taskparams['path'] = path
         taskparams['filename'] = filename
         taskparams['source_name'] = 'ProductRate'
-        taskparams['row_id'] = res_check['row_id']
+        taskparams['row_id'] = str(res_check['row_id'])
 
         job_id = queue_job("tasks.package.CreateTask", taskparams)
         return HttpResponse(json.dumps({'job_id': str(job_id)}), content_type="application/json")
