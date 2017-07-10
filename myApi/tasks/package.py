@@ -10,8 +10,8 @@ import os
 from datetime import datetime as dt
 from myApi import my_settings
 from myApi.my_rectpack_lib.single_use_rate import main_process, use_rate_data_is_valid
-from myApi.my_rectpack_lib.package_tools import run_product_rate_task, package_data_check, package_main_function
-from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work,find_best_piece, multi_piece
+from myApi.my_rectpack_lib.package_tools import run_product_rate_task, package_main_function
+from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work, find_best_piece, multi_piece
 from myApi.my_rectpack_lib.sql import get_data
 
 BASE_URL = 'http://192.168.3.172:8089/'
@@ -67,7 +67,7 @@ class CreateTask(Task):
 
         if params["source_name"] == 'ProductRate':
 
-            result = subtask("tasks.package.%s" % params["source_name"], {
+            result = queue_job("tasks.package.%s" % params["source_name"], {
                 "data": params["post_data"],
                 'path': params["path"],
                 'filename': params["filename"],
@@ -75,12 +75,13 @@ class CreateTask(Task):
 
         if params["source_name"] == 'FindBestPieceQueen':
 
-            result = subtask("tasks.package.%s" % params["source_name"], {
+            result = queue_job("tasks.package.%s" % params["source_name"], {
                 "data": params["post_data"],
                 'only_one': params["only_one"],
             }, queue='best_num')
 
-        return result
+        log.info(result)
+        return 'OK'
 
 
 class SingleUseRate(Task):
@@ -98,41 +99,32 @@ class ProductRate(BaseTask):
     def run(self, params):
         self.connect()
         # has row id, need to save the result in other db
-        row_id = None
-        if 'userName' in params.get("data").keys():
-            res_check = package_data_check(params.get("data"))
-            if res_check['error']:
-                return res_check
-            elif not res_check['row_id']:
-                return res_check
-
-            row_id = res_check['row_id']
+        row_id = params.get("row_id")
 
         from myApi.models import Project
         from myApi.views import create_project
         from myApi.my_rectpack_lib.sql import update_mix_status_result, update_mix_status
 
-        project = Project.objects.filter(data_input=params.get("data")['shape_data'] + params.get("data")['bin_data']).last()
-        if project:
-            if project.comment != params.get("data")['project_comment']:
-                project.comment = params.get("data")['project_comment']
-                all_products = project.products.all()
-                project.pk = None
-                project.save()
-                for product in all_products:
-                    project.products.add(product)
+        # 如果没有row_id 就不需要保存运行状态，而且没有对比过是否有相同数据，所以要比较一下
+        if not row_id:
+            project = Project.objects.filter(data_input=params.get("data")['shape_data'] + params.get("data")['bin_data']).last()
+            if project:
+                if project.comment != params.get("data")['project_comment']:
+                    project.comment = params.get("data")['project_comment']
+                    all_products = project.products.all()
+                    project.pk = None
+                    project.save()
+                    for product in all_products:
+                        project.products.add(product)
 
-                project.save()
+                    project.save()
 
-            content = {}
-            url_res = BASE_URL + 'project_detail/' + str(project.id)
-            content['url'] = url_res
-            content['project_id'] = str(project.id)
+                content = {}
+                url_res = BASE_URL + 'project_detail/' + str(project.id)
+                content['url'] = url_res
+                content['project_id'] = str(project.id)
 
-            if row_id:
-                content['guid'] = str(row_id)
-                update_mix_status_result(row_id, url_res)
-            return content
+                return content
 
         if row_id:
             res = run_product_rate_task(
@@ -146,6 +138,7 @@ class ProductRate(BaseTask):
                 params.get("path"),
             )
 
+        # 求出结果，返回数据
         if res['error']:
             log.info(res['info'])
         else:
@@ -167,14 +160,10 @@ class FindBestPieceQueen(BaseTask):
 
     def run(self, params):
         self.connect()
-        from myApi.views import create_project
-        from myApi.models import Project
-        from myApi.my_rectpack_lib.sql import update_result
-
         rows = None
-        output_result = []
-        subtask = wait_for_job
+        res_data = list()
         if params.get('only_one'):
+            # 先插入数据库  generate_work
             res_data = generate_work(params.get("data"))
             if not res_data['IsErr']:
                 rows = get_data(bom_version=res_data['data'][0]['BOMVersion'])
@@ -183,93 +172,100 @@ class FindBestPieceQueen(BaseTask):
 
         if rows:
             for input_data in rows:
-                content_2 = {}
+                # content_2 = {}
                 # new task for find best piece
-                res_task = subtask("tasks.package.FindBestPiece", {
-                    "shape_data": input_data['ShapeData'],
-                    'bin_data': input_data['BinData'],
+                job_id = queue_job("tasks.package.FindBestPiece", {
+                    'input_data': input_data
                 }, queue='best_num')
-                content_2['BOMVersion'] = input_data['BOMVersion']
-                content_2['SkuCode'] = input_data['SkuCode']
-                content_2['Created'] = dt.today()
-                if res_task['error']:
-                    content_2['status'] = my_settings.NO_NUM_STATUS
-                    update_result(content_2)
-                    log.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
-
-                else:
-                    log.info('finish work BOMVersion=%s, best piece is %d and begin to draw the solution' % (
-                        input_data['BOMVersion'], res_task['result']['piece']))
-                    content_2['best_num'] = res_task['result']['piece']
-                    # new post product rate job, 拿到job id 等待计算结束，取得project id， 再去找结果
-                    try:
-                        res_product, values, filename = run_product_rate_func(Project,
-                            res_task['result']['piece'], input_data['ShapeData'],
-                            input_data['BinData'], comment=input_data['Product'])
-
-                    except Exception as e:
-                        log.error(e)
-                        content_2['status'] = u'生产项目详细页面出错'
-                        update_result(content_2)
-                        continue
-
-                    if res_product['error']:
-                        log.error(res_product)
-                        log.error(e)
-                        content_2['status'] = u'生产项目详细页面出错'
-                        update_result(content_2)
-
-                    else:
-                        # 返回每种材料的平均利用率
-                        # 如果已经存在相同项目，就直接保存
-                        if 'rates' not in res_product.keys():
-                            rates = {}
-                            try:
-                                if 'statistics_data' in res_product.keys():
-                                    for res in res_product['statistics_data']:
-                                        tmp_list = res['rates'].split(', ')
-                                        tmp_list = [float(x) for x in tmp_list]
-                                        rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
-                                    project_id = create_project(res_product, values, filename)
-                                    log.info('finish Bom: %s  and the new project id is %s' % (
-                                        input_data['BOMVersion'], str(project_id)))
-                                else:
-                                    log.error('without statistics_data')
-                                    log.error(res_product)
-                                    content_2['status'] = u'保存项目展示页面出错, 缺少统计数据'
-                                    update_result(content_2)
-                                    continue
-                            except:
-                                log.error('has error during calculating the rates')
-                                log.error(res_product)
-                                content_2['status'] = u'保存项目展示页面出错'
-                                update_result(content_2)
-                                continue
-                        else:
-                            rates = res_product['rates']
-
-                        content_2['status'] = my_settings.OK_STATUS
-                        content_2['url'] = res_product['url']
-                        content_2['rates'] = list()
-                        if content_2['status'] == my_settings.OK_STATUS:
-                            for skucode, rate in rates.items():
-                                content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
-
-                        output_result.append({
-                            'Bon_version': str(content_2['BOMVersion']),
-                            'url': content_2['url']
-                        })
-                        update_result(content_2)
-                        continue
-
-        return json.dumps(output_result)
+                log.info(job_id)
+                res_data.append({'job_id': str(job_id)})
+        return json.dumps(res_data)
 
 
-class FindBestPiece(Task):
+class FindBestPiece(BaseTask):
 
     def run(self, params):
-        error, result = find_best_piece(params.get("shape_data"), params.get("bin_data"))
-        return {'error': error, 'result': result}
+        self.connect()
+        from myApi.views import create_project
+        from myApi.models import Project
+        from myApi.my_rectpack_lib.sql import update_result
+        content_2 = {}
+        input_data = params.get("input_data")
+        # 寻找最佳生产数量
+        error, result = find_best_piece(input_data["ShapeData"], input_data["BinData"])
+
+        content_2['BOMVersion'] = input_data['BOMVersion']
+        content_2['SkuCode'] = input_data['SkuCode']
+        content_2['Created'] = dt.today()
+
+        if error:
+            content_2['status'] = my_settings.NO_NUM_STATUS
+            update_result(content_2)
+            log.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
+            return content_2
+
+        else:
+            log.info('finish work BOMVersion=%s, best piece is %d and begin to draw the solution' % (
+                input_data['BOMVersion'], result['piece']))
+            content_2['best_num'] = result['piece']
+            # new post product rate job, 拿到job id 等待计算结束，取得project id， 再去找结果
+            try:
+                res_product, values, filename = run_product_rate_func(Project,
+                                                                      result['piece'],
+                                                                      input_data['ShapeData'],
+                                                                      input_data['BinData'],
+                                                                      comment=input_data['Product'])
+
+            except Exception as e:
+                log.error(e)
+                content_2['status'] = u'生产项目详细页面出错'
+                update_result(content_2)
+                return content_2
+
+            if res_product['error']:
+                log.error(res_product)
+                content_2['status'] = u'生产项目详细页面出错'
+                update_result(content_2)
+                return content_2
+
+            else:
+                # 返回每种材料的平均利用率
+                # 如果已经存在相同项目，就直接保存
+                if 'rates' not in res_product.keys():
+                    rates = {}
+                    try:
+                        if 'statistics_data' in res_product.keys():
+                            for res in res_product['statistics_data']:
+                                tmp_list = res['rates'].split(', ')
+                                tmp_list = [float(x) for x in tmp_list]
+                                rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
+                            project_id = create_project(res_product, values, filename)
+                            log.info('finish Bom: %s  and the new project id is %s' % (
+                                input_data['BOMVersion'], str(project_id)))
+                        else:
+                            log.error('without statistics_data')
+                            log.error(res_product)
+                            content_2['status'] = u'保存项目展示页面出错, 缺少统计数据'
+                            update_result(content_2)
+                            return content_2
+                    except:
+                        log.error('has error during calculating the rates')
+                        log.error(res_product)
+                        content_2['status'] = u'保存项目展示页面出错'
+                        update_result(content_2)
+                        return content_2
+                else:
+                    rates = res_product['rates']
+
+                content_2['status'] = my_settings.OK_STATUS
+                content_2['url'] = res_product['url']
+                content_2['rates'] = list()
+                if content_2['status'] == my_settings.OK_STATUS:
+                    for skucode, rate in rates.items():
+                        content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
+
+                update_result(content_2)
+                return content_2
 
 
 def run_product_rate_func(project_model, num_piece, shape_data, bin_data, comment):
