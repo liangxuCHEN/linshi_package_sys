@@ -64,24 +64,24 @@ class CreateTask(Task):
                     "rate": result["rate"],
                     'filename': params["filename"],
                 })
+            return result
 
         if params["source_name"] == 'ProductRate':
 
-            result = queue_job("tasks.package.%s" % params["source_name"], {
+            job_id = queue_job("tasks.package.%s" % params["source_name"], {
                 "data": params["post_data"],
                 'path': params["path"],
                 'filename': params["filename"],
             }, queue='product_rate')
+            return {'job_id': str(job_id)}
 
         if params["source_name"] == 'FindBestPieceQueen':
-
-            result = queue_job("tasks.package.%s" % params["source_name"], {
+            job_id = queue_job("tasks.package.%s" % params["source_name"], {
                 "data": params["post_data"],
                 'only_one': params["only_one"],
             }, queue='best_num')
 
-        log.info(result)
-        return 'OK'
+            return {'job_id': str(job_id)}
 
 
 class SingleUseRate(Task):
@@ -177,7 +177,7 @@ class FindBestPieceQueen(BaseTask):
                 job_id = queue_job("tasks.package.FindBestPiece", {
                     'input_data': input_data
                 }, queue='best_num')
-                log.info(job_id)
+                log.info('job_id = %s' % str(job_id))
                 res_data.append({'job_id': str(job_id)})
         return json.dumps(res_data)
 
@@ -320,4 +320,3 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
     }, queue='product_rate')
 
     return results, values, filename
-
