@@ -304,6 +304,13 @@ def product_use_rate_demo(request):
 #
 
 def create_project(results, post_data, filename):
+    """
+    把结果保存起来，方便展示，一个项目包含多个混排结果
+    :param results:  产品混排结果
+    :param post_data: 产品信息
+    :param filename: 文档名字
+    :return:
+    """
     # save project
     project = Project(
         comment=post_data['project_comment'],
@@ -334,12 +341,13 @@ def create_project(results, post_data, filename):
 
 
 def cut_detail(request, p_id):
-    # 是否带余料占比参数
+    # 是否带余料占比参数, 随时调整占比参数
     percent = request.GET.get('percent')
     if percent:
         percent = int(percent)
     else:
         percent = 50
+
     product = get_object_or_404(ProductRateDetail, pk=p_id)
     content = {
         'sheet_name': product.sheet_name,
@@ -523,6 +531,11 @@ def project_detail(request, p_id):
 
 @csrf_exempt
 def statical_comment(request):
+    """
+    评论分析接口,返回统计结果
+    :param request:
+    :return:
+    """
     if request.method == 'POST':
         result = calc_comment(request.POST.get('paramets'))
         response = HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
@@ -536,6 +549,11 @@ def statical_comment(request):
 
 
 def learn_classify_comment(request):
+    """
+    添加学习模型，学习评论分类
+    :param request:
+    :return:
+    """
     if request.method == 'POST':
         learn_file_name = request.POST.get('learn_list')
         result = learn_model(learn_file_name)
@@ -549,6 +567,11 @@ def learn_classify_comment(request):
 
 
 def upload_file(request):
+    """
+    上传学习模型文档（xls格式）
+    :param request:
+    :return:
+    """
     if request.method == 'POST':
         l_file = request.FILES.get('learn_file')
         if l_file:
@@ -559,6 +582,11 @@ def upload_file(request):
 
 
 def predict_sentence(request):
+    """
+    测试学习模型，对句子继续分类
+    :param request:
+    :return:
+    """
     if request.method == 'POST':
         model_file_name = request.POST.get('model_list')
         if model_file_name:

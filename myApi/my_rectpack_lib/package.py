@@ -355,7 +355,7 @@ class PackerSolution(object):
                  empty_section_min_height=None,
                  empty_section_min_width=None):
         """
-        :param rect_data: rect_data 输入是一个字符串如：板A 400 500 30;板A 130 250 10;板B 800 900 5;
+        :param rect_data: rect_data 输入是一个字符串如：A 400 500 30;A 130 250 10;B 800 900 5;
         :param bin_data:  : A 三聚氰胺板-双面胡桃木哑光(J2496-4)25mm 2430*1210*18 是;B 三聚氰胺板-双面白布纹哑光（18mm） 2430 1210 0 0;
         :param bins_num（余料再利用）:  : A 2230*1010*18 3;A 1230*810*18 3
         :param border: 切割间隙

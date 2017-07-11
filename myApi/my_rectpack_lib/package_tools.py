@@ -1,15 +1,13 @@
 # encoding=utf8
 import json
-import numpy as np
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.patches as patches
-from datetime import datetime as dt
 
 from package import PackerSolution
 import single_use_rate
-from base_tools import draw_one_pic, use_rate, find_the_same_position, log_init
+from base_tools import draw_one_pic, use_rate, find_the_same_position
 from sql import update_mix_status, update_mix_status_time, insert_mix_status, Mssql
 from mrq.context import log
 
@@ -242,6 +240,12 @@ def detail_empty_sections(empty_sections, shape_list, border, is_texture, is_ver
 
 
 def package_main_function(input_data, pathname):
+    """
+    生产详细排版信息
+    :param input_data: API 传来的所有参数
+    :param pathname:  保存文件路径
+    :return:
+    """
     bins_num = None
     min_size = None
     min_height = None
@@ -308,7 +312,7 @@ def package_main_function(input_data, pathname):
             title = 'average rate: %s' % str(data['rate'])
             # 返回唯一的排版列表，以及数量
             same_bin_list = find_the_same_position(best_solution)
-
+            # 生成排版图片
             draw_one_pic(best_solution, rate_list, bins_list=bins_list,
                          path=pathname + data['bin_key'], border=1, num_list=same_bin_list, title=title,
                          shapes=shape_list, empty_positions=data['empty_sections'])
@@ -345,58 +349,12 @@ def package_main_function(input_data, pathname):
         return {'error': True, 'info': packer.error_info()}
 
 
-# def find_best_piece(input_data):
-#     # 保存之前的五个结果，求方差
-#     rate_res = list()
-#     num_pic = 1
-#     best_pic = 1
-#     best_rate = 0
-#     best_rates = None
-#     while True:
-#         # 创建分析对象
-#         packer = PackerSolution(
-#             input_data['shape_data'],
-#             input_data['bin_data'],
-#             border=int(input_data['border']),
-#             num_pic=num_pic
-#         )
-#         if packer.is_valid():
-#             # 选择几种经常用的算法
-#             res = packer.find_solution(algo_list=[0, 4, 40, 8, 20, 44, 24])
-#             # 平均使用率
-#             total_rate = 0
-#             for data in res:
-#                 total_rate += data['rate']
-#             tmp_avg_rate = total_rate / len(res)
-#
-#             # 记录最大值
-#             if best_rate < tmp_avg_rate:
-#                 best_rate = tmp_avg_rate
-#                 best_pic = num_pic
-#                 best_rates = [(data['bin_key'], data['rate']) for data in res]
-#
-#             if num_pic > NUM_SAVE:
-#                 rate_res.append(tmp_avg_rate)
-#                 np_arr = np.array(rate_res[-1 * NUM_SAVE:])
-#                 var_rate = np_arr.var()
-#                 if var_rate < MAX_VAR_RATE:
-#                     # 少于阈值返回最佳值
-#                     return {
-#                         'error': False,
-#                         'piece': best_pic,
-#                         'rates': best_rates
-#                     }
-#             else:
-#                 rate_res.append(tmp_avg_rate)
-#
-#         else:
-#             return {'error': True, 'info': packer.error_info()}
-#
-#         num_pic += 1
-
-
 def package_data_check(input_data):
-    # 数据库连接-检查数据库
+    """
+    在生产排版信息前，先对数据进行检查，并且判断是否有重复任务
+    :param input_data:
+    :return: 若有新任务返回 row_id
+    """
     try:
         parm = {
             'comment': input_data['project_comment'],
@@ -431,13 +389,14 @@ def package_data_check(input_data):
         has_same_user = False
         user_guid = None
         for row_data in res:
+            # 0: guid, 1: user
             if row_data[1] == user:
                 has_same_user = True
                 user_guid = row_data[0]
                 break
 
         if has_same_user:
-            # 更新-更新时间,不返回guid
+            # 更新时间,不返回guid
             update_mix_status_time(user_guid)
         else:
             # 新任务
@@ -450,57 +409,34 @@ def package_data_check(input_data):
 
 
 def run_product_rate_task(input_data, guid, path):
-    created = dt.today()
-    # log_run = log_init('mix_rate%s.log' % created.strftime('%Y_%m_%d'))
+    """
+    生产排版信息，而且需要更新到数据库任务列表中
+    :param input_data:
+    :param guid:
+    :param path:
+    :return:
+    """
     log.info('read the db...')
     update_mix_status(guid=guid, status=u'计算中')
-    # yield '<p>Working on the job guid=%s </p>' % guid
     log.info('Working on the job guid=%s ' % guid)
 
-    # file_name = str(time.time()).split('.')[0]
-    # path = os.path.join(settings.BASE_DIR, 'static')
-    # path = os.path.join(path, file_name)
     results = package_main_function(input_data, path)
     if results['error']:
         log.info('has some error during the work')
-        # yield '<p>has some error during the work</p>'
         update_mix_status(guid=guid, status=results['info'])
         return results
     else:
         return results
 
-# TODO：改成Http post
-# def create_project(results, post_data, filename):
-#     # save project
-#     project = Project(
-#         comment=post_data['project_comment'],
-#         data_input=post_data['shape_data'] + post_data['bin_data']
-#     )
-#     project.save()
-#     # save product
-#     for res in results['statistics_data']:
-#         product = ProductRateDetail(
-#             sheet_name=res['name'],
-#             num_sheet=res['num_sheet'],
-#             avg_rate=res['rate'],
-#             rates=res['rates'],
-#             detail=res['detail'],
-#             num_shape=res['num_shape'],
-#             sheet_num_shape=res['sheet_num_shape'],
-#             pic_url='static/%s%s.png' % (filename, res['bin_type']),
-#             same_bin_list=res['same_bin_list'],
-#             empty_sections=res['empty_sections'],
-#             algorithm=res['algo_id'],
-#             empty_section_ares=res['empty_section_ares'],
-#             total_rates=res['total_rates']
-#         )
-#         product.save()
-#         project.products.add(product)
-#     project.save()
-#     return project.id
-
 
 def multi_piece(num_piece, shape_data, bin_data):
+    """
+    整理参数，倍数板材数量
+    :param num_piece:
+    :param shape_data:
+    :param bin_data:
+    :return:
+    """
     shape_data = shape_data.encode('utf-8')
     bin_data = bin_data.encode('utf-8')
     shape_data = json.loads(shape_data)
@@ -509,40 +445,6 @@ def multi_piece(num_piece, shape_data, bin_data):
     shape_data = json.dumps(shape_data)
     return shape_data, bin_data
 
-
-
-
-# def http_post_test(num_piece, shape_data, bin_data, comment=None):
-#     url = my_settings.URL_PRO_TEST
-#     # 整理input data
-#     s_data, b_data = multi_piece(num_piece, shape_data, bin_data)
-#     # 整理描述
-#     if comment:
-#         try:
-#             comment = json.loads(comment)
-#             comment['Amount'] = num_piece
-#             comment = json.dumps(comment, ensure_ascii=False)
-#         except:
-#             if type(comment) == type('string'):
-#                 comment += ' 最优利用率推荐生产数量=%d' % num_piece
-#             else:
-#                 comment = json.dumps(comment, ensure_ascii=False)
-#     else:
-#         comment = '最优利用率推荐生产数量=%d' % num_piece
-#     values = {
-#         'project_comment': comment.encode('utf8'),
-#         'border': 5,
-#         'shape_data': s_data,
-#         'bin_data': b_data,
-#         'userName': 'Test'
-#     }
-#     data = urlencode(values)
-#     req = urllib2.Request(url, data)  # 生成页面请求的完整数据
-#     try:
-#         response = urllib2.urlopen(req)  # 发送页面请求
-#         text = response.read()
-#     except urllib2.URLError as e:
-#         pass
 
 if __name__ == '__main__':
     pass

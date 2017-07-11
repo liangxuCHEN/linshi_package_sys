@@ -1,6 +1,4 @@
 # encoding=utf8
-import sys
-# sys.path.append("/home/django/linshi_package_sys/")
 from datetime import datetime as dt
 import json
 import urllib2
@@ -128,13 +126,12 @@ def send_mail_process(body):
 
 def generate_work(input_data):
     """
-    接受任务，存入数据库，（然后调出数据库里面需要执行的所有任务），马上执行
+    接受任务，存入数据库，（然后调出数据库里面需要执行的任务），马上执行
     :param input_data:
     :return:
     """
     # 更新日期
     created = dt.today()
-    #log_g = log_init('save_works%s.log' % created.strftime('%Y_%m_%d'))
     log.info('Loading data ....')
     try:
         datas = json.loads(input_data['works'])
@@ -163,7 +160,6 @@ def generate_work(input_data):
                 if res[0][1] == my_settings.OK_STATUS:
                     insert_same_data(res[0][0], res[0][2], data, shape_data, bin_data, product_comment, res[0][3])
                 else:
-                    # TODO;有相同数据计算在进行，等一下再查一下
                     insert_list.append({
                         'SkuCode': data['SkuCode'],
                         'Status': 0,
@@ -219,121 +215,5 @@ def generate_work(input_data):
         update_new_work(update_list)
     log.info('-------------finish and return the result----------------')
     return {'ErrDesc': u'操作成功', 'IsErr': False, 'data': result}
-
-
-# def main_process():
-#     end_day = dt.today()
-#     log_main = log_init('find_best_piece%s.log' % end_day.strftime('%Y_%m_%d'))
-#     log_main.info('connect to the DB and get the jobs....')
-#     rows = get_data()
-#     log_main.info('there are %d works today' % len(rows))
-#
-#     for input_data in rows:
-#         # 更新另外的数据库,每得到结果更新一次
-#         content_2 = {}
-#         error, result = find_best_piece(input_data['ShapeData'], input_data['BinData'])
-#         content_2['BOMVersion'] = input_data['BOMVersion']
-#         content_2['Created'] = dt.today()
-#         if error:
-#             content_2['status'] = CALC_ERROR_STATUS
-#             update_result(content_2)
-#             log_main.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
-#             # 如果出错发送邮件通知
-#             body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
-#             send_mail_process(body)
-#         else:
-#             log_main.info('finish work BOMVersion=%s, best piece is %d and begin to draw the solution' % (
-#                 input_data['BOMVersion'], result['piece']))
-#             # 访问API
-#             http_response, rates = run_product_rate_func(result['piece'], input_data['ShapeData'],
-#                                                          input_data['BinData'], comment=input_data['Product'])
-#             result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
-#             content_2['status'] = OK_STATUS
-#             content_2['url'] = result['url']
-#             content_2['rates'] = list()
-#
-#             if content_2['status'] == OK_STATUS:
-#                 for skucode, rate in rates.items():
-#                     content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
-#                 # 更新数据结果
-#                 update_result(content_2)
-#                 log_main.info('finish draw solution BOMVersion=%s' % input_data['BOMVersion'])
-#             else:
-#                 log_main.info('error in draw solution BOMVersion=%s' % input_data['BOMVersion'])
-#
-#     log_main.info('-------------------All works has done----------------------------')
-
-
-# def get_work_and_calc(post_data, only_one=True):
-#     """
-#     收到任务请求
-#     第一步（generate_work）：保存任务到数据库，然后通过比对，过虑重复任务，调用所有需要计算的任务
-#     第二步：找出最佳生产数量，然后求这样的数量的板材排列
-#     :param post_data:
-#     :param only_one:
-#     :return:
-#     """
-#     rows = None
-#     if only_one:
-#         result = generate_work(post_data)
-#         if not result['IsErr']:
-#             rows = get_data(bom_version=result['data'][0]['BOMVersion'])
-#     else:
-#         rows = get_data()
-#
-#     log.info('connect to the DB and get the data, there are %d works today' % len(rows))
-#     # yield u'<p>一共有%d任务</p>' % len(rows)
-#     # TODO：队列任务修改，每一个循环一个任务
-#     if rows:
-#         for input_data in rows:
-#             # 更新另外的数据库,每得到结果更新一次
-#             content_2 = {}
-#             error, result = find_best_piece(input_data['ShapeData'], input_data['BinData'])
-#             content_2['BOMVersion'] = input_data['BOMVersion']
-#             content_2['SkuCode'] = input_data['SkuCode']
-#             content_2['Created'] = dt.today()
-#             if error:
-#                 content_2['status'] = NO_NUM_STATUS
-#                 update_result(content_2)
-#                 log.error('work BOMVersion=%s has error in input data ' % input_data['BOMVersion'])
-#                 # yield u'<p>运行出错，输入数据有误</p>'
-#                 # 如果出错发送邮件通知
-#                 body = '<p>运行 package_script_find_best_piece.py 出错，输入数据有误</p>'
-#                 send_mail_process(body)
-#             else:
-#                 log.info('finish work BOMVersion=%s, best piece is %d and begin to draw the solution' % (
-#                     input_data['BOMVersion'], result['piece']))
-#                 content_2['best_num'] = result['piece']
-#                 # TODO:换成函数
-#                 try:
-#                     http_response, rates, status = run_product_rate_func(
-#                         result['piece'], input_data['ShapeData'],
-#                         input_data['BinData'], comment=input_data['Product'])
-#                 except Exception as e:
-#                     log.error(status)
-#                     log.error(e)
-#                     content_2['status'] = u'生产项目详细页面出错'
-#                     update_result(content_2)
-#                     yield u'<p>计算BOMVersion:%s 出错</p>' % input_data['BOMVersion']
-#                     continue
-#
-#                 result['url'] = my_settings.BASE_URL + http_response if http_response else 'no url'
-#                 content_2['status'] = status
-#                 content_2['url'] = result['url']
-#                 content_2['rates'] = list()
-#                 if content_2['status'] == OK_STATUS:
-#                     for skucode, rate in rates.items():
-#                         content_2['rates'].append((input_data['SkuCode'], content_2['BOMVersion'], skucode, rate))
-#
-#                     # 更新数据结果
-#                     update_result(content_2)
-#                     log.info('finish draw solution BOMVersion=%s' % input_data['BOMVersion'])
-#                     # yield u'<p>计算BOMVersion:%s 结束，更新数据</p>' % input_data['BOMVersion']
-#                 else:
-#                     log.info('error in draw solution BOMVersion=%s' % input_data['BOMVersion'])
-#                     # yield u'<p>BOMVersion=%s 画图出错, %s</p>' % (input_data['BOMVersion'], content_2['status'])
-#
-#         log.info('-------------------All works has done----------------------------')
-
 
 

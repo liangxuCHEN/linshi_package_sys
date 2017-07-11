@@ -5,6 +5,10 @@ from mrq.context import log
 
 class SaveUseRate(Task):
     def connect(self):
+        """
+        为了使用django的model
+        :return:
+        """
         import os, django
         import sys
         sys.path.append("/home/django/linshi_package_sys/")

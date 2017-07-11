@@ -14,9 +14,6 @@ from myApi.my_rectpack_lib.package_tools import run_product_rate_task, package_m
 from myApi.my_rectpack_lib.package_script_find_best_piece import generate_work, find_best_piece, multi_piece
 from myApi.my_rectpack_lib.sql import get_data
 
-BASE_URL = 'http://192.168.3.172:8089/'
-BASE_DIR = '/home/django/linshi_package_sys'
-
 
 def wait_for_job(path, params, **kwargs):
     job_id = queue_job(path, params, **kwargs)
@@ -50,7 +47,6 @@ class BaseTask(Task):
 class CreateTask(Task):
     def run(self, params):
         subtask = wait_for_job
-        result = None
         if params["source_name"] == 'SingleUseRate':
 
             result = subtask("tasks.package.%s" % params["source_name"], {
@@ -98,6 +94,7 @@ class SingleUseRate(Task):
 class ProductRate(BaseTask):
 
     def run(self, params):
+        # 混排任务调度
         self.connect()
         # has row id, need to save the result in other db
         row_id = params.get("row_id")
@@ -122,7 +119,7 @@ class ProductRate(BaseTask):
                     project.save()
 
                 content = {}
-                url_res = BASE_URL + 'project_detail/' + str(project.id)
+                url_res = my_settings.BASE_URL + 'project_detail/' + str(project.id)
                 content['url'] = url_res
                 content['project_id'] = str(project.id)
 
@@ -146,7 +143,7 @@ class ProductRate(BaseTask):
         else:
             try:
                 project_id = create_project(res, params.get("data"), params.get("filename"))
-                url_res = BASE_URL + 'project_detail/' + str(project_id)
+                url_res = my_settings.BASE_URL + 'project_detail/' + str(project_id)
                 res['url'] = url_res
                 res['project_id'] = project_id
                 if row_id:
@@ -174,8 +171,6 @@ class FindBestPieceQueen(BaseTask):
 
         if rows:
             for input_data in rows:
-                # content_2 = {}
-                # new task for find best piece
                 job_id = queue_job("tasks.package.FindBestPiece", {
                     'input_data': input_data
                 }, queue='best_num')
@@ -187,6 +182,11 @@ class FindBestPieceQueen(BaseTask):
 class FindBestPiece(BaseTask):
 
     def run(self, params):
+        """
+        找最佳生产数量任务
+        :param params:
+        :return:
+        """
         self.connect()
         from myApi.views import create_project
         from myApi.models import Project
@@ -259,6 +259,7 @@ class FindBestPiece(BaseTask):
                 else:
                     rates = res_product['rates']
 
+                # 返回正确结果，保存数据到数据库
                 content_2['status'] = my_settings.OK_STATUS
                 content_2['url'] = res_product['url']
                 content_2['rates'] = list()
@@ -271,6 +272,15 @@ class FindBestPiece(BaseTask):
 
 
 def run_product_rate_func(project_model, num_piece, shape_data, bin_data, comment):
+    """
+    生产详细排版信息
+    :param project_model: django Project model
+    :param num_piece:  最佳生产数量
+    :param shape_data:
+    :param bin_data:
+    :param comment:
+    :return:
+    """
     # 整理input data
     s_data, b_data = multi_piece(num_piece, shape_data, bin_data)
 
@@ -295,7 +305,7 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
                 project.products.add(product)
             project.save()
 
-        url = BASE_URL + 'project_detail/' + str(project.id)
+        url = my_settings.BASE_URL + 'project_detail/' + str(project.id)
         # 需要rate
         rates = {}
         for p in all_products:
@@ -306,7 +316,7 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
         return {'url': url, 'rates': rates, 'error': False}, None, None
 
     filename = str(time.time()).split('.')[0]
-    path = os.path.join(BASE_DIR, 'static')
+    path = os.path.join(my_settings.BASE_DIR, 'static')
     path = os.path.join(path, filename)
     values = {
         'project_comment': comment,
@@ -314,6 +324,7 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
         'shape_data': s_data,
         'bin_data': b_data
     }
+    # 创建子任务：根据最佳数量，做详细的排版展示，
     subtask = wait_for_job
     results = subtask("tasks.package.ProductRate", {
         "data": values,
