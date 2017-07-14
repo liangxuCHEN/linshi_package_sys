@@ -415,7 +415,7 @@ def get_work_and_calc(post_data, only_one=True):
     result, log_work = generate_work(post_data)
     yield result
     if not result['IsErr']:
-        if only_one:
+        if only_one and len(result['data']) > 0:
             rows = get_data(bom_version=result['data'][0]['BOMVersion'])
         else:
             rows = get_data()

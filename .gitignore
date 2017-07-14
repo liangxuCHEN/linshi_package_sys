@@ -8,3 +8,9 @@ db.sqlite3
 myApi/my_settings.py
 static/
 myApi/migrations/
+:w:
+*.rdb
+*.json
+*.pid
+*.sh
+
