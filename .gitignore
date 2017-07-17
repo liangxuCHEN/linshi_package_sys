@@ -13,3 +13,4 @@ myApi/migrations/
 *.sh
 *.pid
 :w:
+*.rdb
