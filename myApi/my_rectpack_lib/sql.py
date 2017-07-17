@@ -18,7 +18,7 @@ OK_STATUS = u'运算结束'
 CALC_ERROR_STATUS = u'计算出错'
 NO_NUM_STATUS = u'没有找到最佳数量'
 
-test_table = '_TEST'
+test_table = ''
 
 TABLE_MIX_STATE = 'T_BOM_PlateUtilMixedState'+test_table
 TABLE_MIX_DETAIL = 'T_BOM_PlateUtilMixedDetail'+test_table
@@ -129,6 +129,7 @@ def insert_mix_status(paramets, comments, user_name, other):
             data['BOMVersion'],
             data['Amount']
         ))
+    print insert_data
     sql_text = "insert into " + TABLE_MIX_DETAIL + " values (%s,%s,%s,%s,%s,%s,%s,%s)"
     conn.exec_many_query(sql_text, insert_data)
     return row_id

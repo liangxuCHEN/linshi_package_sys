@@ -139,7 +139,7 @@ class ProductRate(BaseTask):
 
         # 求出结果，返回数据
         if res['error']:
-            log.info(res['info'])
+            log.info('has error and finish')
         else:
             try:
                 project_id = create_project(res, params.get("data"), params.get("filename"))
@@ -165,7 +165,8 @@ class FindBestPieceQueen(BaseTask):
             # 先插入数据库  generate_work
             res_data = generate_work(params.get("data"))
             if not res_data['IsErr']:
-                rows = get_data(bom_version=res_data['data'][0]['BOMVersion'])
+                if len(res_data['data']) > 0:
+                    rows = get_data(bom_version=res_data['data'][0]['BOMVersion'])
         else:
             rows = get_data()
 
@@ -225,7 +226,7 @@ class FindBestPiece(BaseTask):
                 return content_2
 
             if res_product['error']:
-                log.error(res_product)
+                # log.error(res_product)
                 content_2['status'] = u'生产项目详细页面出错'
                 update_result(content_2)
                 return content_2
@@ -246,13 +247,13 @@ class FindBestPiece(BaseTask):
                                 input_data['BOMVersion'], str(project_id)))
                         else:
                             log.error('without statistics_data')
-                            log.error(res_product)
+                            #log.error(res_product)
                             content_2['status'] = u'保存项目展示页面出错, 缺少统计数据'
                             update_result(content_2)
                             return content_2
                     except:
                         log.error('has error during calculating the rates')
-                        log.error(res_product)
+                        #log.error(res_product)
                         content_2['status'] = u'保存项目展示页面出错'
                         update_result(content_2)
                         return content_2

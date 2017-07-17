@@ -6,6 +6,7 @@
 db.sqlite3
 *.ttc
 myApi/my_settings.py
+static
 static/
 myApi/migrations/
 *.json

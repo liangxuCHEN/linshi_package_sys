@@ -382,7 +382,7 @@ def package_data_check(input_data):
     Comment='{comment}' and  ShapeData='{shape_data}' and BinData='{bin_data}' and Paramets='{other}'""".format(
         comment=parm['comment'], shape_data=parm['shape_data'],
         bin_data=parm['bin_data'], other=other)
-    log.info(sql_text)
+    # log.info(sql_text)
     res = conn.exec_query(sql_text)
     row_id = None
     if len(res) > 0:
