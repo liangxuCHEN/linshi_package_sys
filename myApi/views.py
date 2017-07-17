@@ -21,7 +21,8 @@ from myApi.my_rectpack_lib.base_tools import del_same_data
 
 from myApi.models import Userate, ProductRateDetail, Project
 from myApi.data_mining_lib.comment_data import main_process as calc_comment,\
-    get_sentence, get_all_comment_to_excel, get_comment_and_pic as get_c_p
+    get_sentence, get_all_comment_to_excel, get_comment_by_key_word, get_key_words, insert_key_word, \
+    count_key_word, get_comment_and_pic as get_c_p
 from myApi.data_mining_lib.nlp_tools import learn_model, predict_test
 from myApi.tools import handle_uploaded_file
 
@@ -277,31 +278,6 @@ def product_use_rate_demo(request):
         form = AlgoForm()
         return render(request, 'product_use_rate_demo.html', {'form': form})
 
-
-# @csrf_exempt
-# def best_piece(request):
-#     if request.method == 'POST':
-#         result = find_best_piece(request.POST)
-#         return HttpResponse(json.dumps(result), content_type="application/json")
-#     else:
-#         return render(request, 'best_piece.html')
-
-
-# @csrf_exempt
-# def save_work(request):
-#     """
-#     求最佳生产数量的API接口，不再使用
-#     :param request:
-#     :return:
-#     """
-#     if request.method == 'POST':
-#         resp = StreamingHttpResponse(get_work_and_calc(request.POST, only_one=True))
-#         return resp
-#         # return HttpResponse(json.dumps(result, ensure_ascii=False), content_type="application/json")
-#     else:
-#         return render(request, 'add_work.html')
-#
-#
 
 def create_project(results, post_data, filename):
     """
@@ -641,6 +617,63 @@ def get_all_comment(request):
     response["Access-Control-Max-Age"] = "1000"
     response["Access-Control-Allow-Headers"] = "*"
     return response
+
+
+@csrf_exempt
+def get_sentence_by_key_word(request):
+    """
+    根据关键词选评论
+    :param request:
+    :return:
+    """
+    if request.method == 'POST':
+        result = get_comment_by_key_word(request.POST.get('treasure_id'), request.POST.get('key_words'))
+        response = HttpResponse(result, content_type="application/json")
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+        response["Access-Control-Max-Age"] = "1000"
+        response["Access-Control-Allow-Headers"] = "*"
+        return response
+
+
+def get_key_word_count(request):
+    """
+    统计关键词的词频
+    :param request:
+    :return:
+    """
+    key_words = get_key_words(request.POST.get('treasure_id'))
+    result = count_key_word(request.POST.get('treasure_id'), key_words)
+    response = HttpResponse(result, content_type="application/json")
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+    response["Access-Control-Max-Age"] = "1000"
+    response["Access-Control-Allow-Headers"] = "*"
+    return response
+
+
+@csrf_exempt
+def insert_comment_key_word(request):
+    """
+    增加关键词 [{'treasure_id': '5687456165', 'key_word': 'Test'}]
+    :param request:
+    :return:
+    """
+    if request.method == 'POST':
+        key_words = request.POST.get('key_words').split('\n')
+        data = list()
+        for word in key_words:
+            data.append({
+                'treasure_id': request.POST.get('treasure_id'),
+                'key_word': word
+            })
+        result = insert_key_word(data)
+        response = HttpResponse(result, content_type="application/json")
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+        response["Access-Control-Max-Age"] = "1000"
+        response["Access-Control-Allow-Headers"] = "*"
+        return response
 
 
 class ProjectIndexView(generic.ListView):

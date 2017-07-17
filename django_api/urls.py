@@ -16,6 +16,11 @@ urlpatterns = [
     url(r'^project_detail/(?P<p_id>\d+)/$', views.project_detail, name='project_detail'),
     url(r'^save_work/$', views.find_best_piece_job, name='find_best_piece_job'),
     url(r'^save_work_all/$', views.save_work_all, name='save_work_all'),
+
+    url(r'^single_use_rate_job/$', views.single_use_rate_job, name='single_use_rate_job'),
+    url(r'^product_use_rate$', views.product_use_rate_job, name='product_use_rate_job'),
+    url(r'^admin/', include(admin.site.urls)),
+
     url(r'^calc_comment', views.statical_comment, name='statical_comment'),
     url(r'^nlp_learn/$', views.learn_classify_comment, name='nlp_learn'),
     url(r'^upload_file/$', views.upload_file, name='upload_file'),
@@ -23,8 +28,9 @@ urlpatterns = [
     url(r'^get_comment_sentence$', views.get_comment_sentence, name='get_comment_sentence'),
     url(r'^get_all_comment', views.get_all_comment, name='get_all_comment'),
     url(r'^get_comment_and_pic', views.get_comment_and_pic, name='get_comment_and_pic'),
-    url(r'^single_use_rate_job/$', views.single_use_rate_job, name='single_use_rate_job'),
-    url(r'^product_use_rate$', views.product_use_rate_job, name='product_use_rate_job'),
-    url(r'^admin/', include(admin.site.urls)),
+    url(r'^get_key_word_count', views.get_key_word_count, name='get_key_word_count'),
+    url(r'^get_sentence_by_key_word', views.get_comment_and_pic, name='get_comment_and_pic'),
+    url(r'^insert_comment_key_word', views.insert_comment_key_word, name='insert_comment_key_word'),
+
 ]
 urlpatterns += staticfiles_urlpatterns()

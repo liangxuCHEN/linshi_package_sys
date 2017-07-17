@@ -115,3 +115,21 @@ def get_all_comment(item_id):
 
     return res
 
+
+# only one key word
+def get_comment_by_key_word(item_id, key_word):
+
+    conn  = Mssql()
+    sql_text = """select a.ItemName '项目名称', a.TreasureID '宝贝ID', a.TreasureName '宝贝名称',
+    a.TreasureLink '宝贝链接', a.ShopName '商店名称',
+    a.EvaluationScores '宝贝评分', a.Category_Name '类目', a.StyleName '风格',
+    b.AuctionSku '规格描述', b.RateContent '买家评论'
+    from T_Treasure_EvalCustomItem_Detail as a (nolock)
+    RIGHT JOIN V_Treasure_Evaluation as b
+    on a.TreasureID = b.TreasureID
+    where a.TreasureID = '{item_id}' and b.RateContent like '%{key_word}%'
+    """.format(item_id=item_id, key_word=key_word)
+
+    res = conn.exec_query(sql_text)
+
+    return res

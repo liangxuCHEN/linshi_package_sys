@@ -4,9 +4,19 @@ import pandas as pd
 import pymssql
 from myApi import my_settings
 from collections import defaultdict
+from pymongo import MongoClient
+
 import sys
 reload(sys)
 sys.setdefaultencoding("utf-8")
+
+
+MONGO_HOST = '192.168.3.173'
+
+
+def init_mongo_sql():
+    conn = MongoClient('192.168.3.172', 27017)
+    return conn
 
 
 def init_sql():
@@ -178,6 +188,65 @@ def main_process(data):
                 result[level][character] = sorted(result[level][character].items(), key=lambda d: d[1], reverse=True)
 
     return {'IsErr': False, 'ErrDesc': u'成功操作', 'data': result}
+
+
+def count_key_word(treasure_id, key_words):
+    conn = init_sql_253()
+    sql_text = """
+        select RateContent from V_Treasure_Evaluation WHERE TreasureID='{treasure_id}'
+        """.format(treasure_id=treasure_id)
+    res = {}
+    try:
+        df = pd.io.sql.read_sql(sql_text, con=conn)
+        for key in key_words:
+            res[key] = len(df[df['RateContent'].str.contains(key)])
+    except:
+        pass
+    return res
+
+
+def get_comment_by_key_word(treasure_id, key_word):
+    conn = init_sql_253()
+    sql_text = """select a.ItemName '项目名称', a.TreasureID '宝贝ID', a.TreasureName '宝贝名称',
+    a.TreasureLink '宝贝链接', a.ShopName '商店名称',
+    a.EvaluationScores '宝贝评分', a.Category_Name '类目', a.StyleName '风格',
+    b.AuctionSku '规格描述', b.RateContent '买家评论'
+    from T_Treasure_EvalCustomItem_Detail as a (nolock)
+    RIGHT JOIN V_Treasure_Evaluation as b
+    on a.TreasureID = b.TreasureID
+    where a.TreasureID = '{treasure_id}' and b.RateContent like '%{key_word}%'
+    """.format(treasure_id=treasure_id, key_word=key_word)
+    df = pd.io.sql.read_sql(sql_text, con=conn)
+    df = df.drop_duplicates()
+    return df.to_json(orient='records')
+
+
+def insert_key_word(data):
+    conn = init_mongo_sql()
+    key_word_table = conn.nlp_db.comment_key_word
+    try:
+        key_word_table.insert(data)
+    except Exception as e:
+        print e
+    finally:
+        conn.close()
+
+
+def get_key_words(item_id):
+    conn = init_mongo_sql()
+    key_word_table = conn.nlp_db.comment_key_word
+    res = None
+    try:
+        res = key_word_table.find({"treasure_id": item_id})
+    except Exception as e:
+        print e
+    finally:
+        conn.close()
+    key_words = list()
+    if res:
+        for data in res:
+            key_words.append(data['key_word'])
+    return key_words
 
 
 if __name__ == '__main__':
