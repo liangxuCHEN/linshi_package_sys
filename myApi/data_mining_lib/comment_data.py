@@ -213,9 +213,8 @@ def count_key_word(treasure_id, key_words):
 def get_comment_by_key_word(treasure_id, key_word):
     conn = init_sql_253()
     sql_text = """select a.TreasureID, a.TreasureName,
-    a.ShopName,
-    a.Category_Name , a.StyleName ,
-    b.RateContent  
+    a.ShopName, a.Category_Name, a.StyleName,
+    b.RateContent, b.RateDate   
     from T_Treasure_EvalCustomItem_Detail as a (nolock)
     RIGHT JOIN V_Treasure_Evaluation as b
     on a.TreasureID = b.TreasureID
@@ -223,6 +222,7 @@ def get_comment_by_key_word(treasure_id, key_word):
     """.format(treasure_id=treasure_id.strip(), key_word=key_word)
     df = pd.io.sql.read_sql(sql_text, con=conn)
     df = df.drop_duplicates()
+    df['RateDate'] = df['RateDate'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S'))
     return df.to_json(orient='records')
 
 
