@@ -31,6 +31,7 @@ urlpatterns = [
     url(r'^get_key_word_count', views.get_key_word_count, name='get_key_word_count'),
     url(r'^get_sentence_by_key_word', views.get_sentence_by_key_word, name='get_sentence_by_key_word'),
     url(r'^insert_comment_key_word', views.insert_comment_key_word, name='insert_comment_key_word'),
+    url(r'^delete_comment_key_word', views.delete_comment_key_word, name='delete_comment_key_word'),
 
 ]
 urlpatterns += staticfiles_urlpatterns()

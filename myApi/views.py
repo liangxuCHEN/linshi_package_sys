@@ -22,7 +22,7 @@ from myApi.my_rectpack_lib.base_tools import del_same_data
 from myApi.models import Userate, ProductRateDetail, Project
 from myApi.data_mining_lib.comment_data import main_process as calc_comment,\
     get_sentence, get_all_comment_to_excel, get_comment_by_key_word, get_key_words, insert_key_word, \
-    count_key_word, get_comment_and_pic as get_c_p
+    count_key_word, delete_key_word, get_comment_and_pic as get_c_p
 from myApi.data_mining_lib.nlp_tools import learn_model, predict_test
 from myApi.tools import handle_uploaded_file
 
@@ -672,6 +672,23 @@ def insert_comment_key_word(request):
                 })
         res = insert_key_word(data)
         response = HttpResponse(json.dumps({'Success':res}), content_type="application/json")
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+        response["Access-Control-Max-Age"] = "1000"
+        response["Access-Control-Allow-Headers"] = "*"
+        return response
+
+
+@csrf_exempt
+def delete_comment_key_word(request):
+    """
+    删除关键词 [{'treasure_id': '5687456165', 'key_word': 'Test'}]
+    :param request:
+    :return:
+    """
+    if request.method == 'POST':
+        res = delete_key_word(request.POST.get('key_word'), request.POST.get('treasure_id').strip())
+        response = HttpResponse(json.dumps({'Success': res}), content_type="application/json")
         response["Access-Control-Allow-Origin"] = "*"
         response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
         response["Access-Control-Max-Age"] = "1000"

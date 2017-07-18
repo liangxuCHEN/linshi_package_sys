@@ -95,7 +95,8 @@ def get_sentence(data):
     data['word'] = "CHARINDEX('%s', Sentence)>0 and CHARINDEX('%s', Tag)>0" % (data['word'], data['tag'])
 
     treasure_ids = (str(data['t_ids[]']), '')
-    sql_text = """SELECT TreasureID, Sentence FROM T_DCR_Comment (nolock) WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and %s;""" % \
+    sql_text = """SELECT TreasureID, Sentence FROM T_DCR_Comment (nolock)
+    WHERE TreasureID in %s and RateDate > '%s' and RateDate < '%s' and %s;""" % \
                (str(treasure_ids), data['begin_date'], data['end_date'], data['word'])
     df = pd.io.sql.read_sql(sql_text, con=conn)
     df = df.drop_duplicates()
@@ -195,7 +196,6 @@ def count_key_word(treasure_id, key_words):
     sql_text = """
         select RateContent from V_Treasure_Evaluation WHERE TreasureID='{treasure_id}'
         """.format(treasure_id=treasure_id.strip())
-    #print sql_text
     res = list()
     try:
         df = pd.io.sql.read_sql(sql_text, con=conn)
@@ -204,7 +204,8 @@ def count_key_word(treasure_id, key_words):
                 'key': key,
                 'count': len(df[df['RateContent'].str.contains(key)])
             })
-    except:
+    except Exception as e:
+        print e
         pass
     return res
 
@@ -238,16 +239,26 @@ def insert_key_word(data):
     return True
 
 
+def delete_key_word(keyword, treasure_id):
+    conn = init_mongo_sql()
+    key_word_table = conn.nlp_db.comment_key_word
+    try:
+        key_word_table.delete_one({'treasure_id': treasure_id, 'key_word': keyword})
+    except Exception as e:
+        print e
+        return False
+    finally:
+        conn.close()
+    return True
+
+
 def get_key_words(item_id):
     conn = init_mongo_sql()
     key_word_table = conn.nlp_db.comment_key_word
     res = list()
-    #print item_id
     try:
-        for data in  key_word_table.find({"treasure_id": item_id.strip()}):
-            #print(data)
-	    res.append(data['key_word'])
-        #print('is ok')
+        for data in key_word_table.find({"treasure_id": item_id.strip()}):
+            res.append(data['key_word'])
     except Exception as e:
         print e
     finally:
