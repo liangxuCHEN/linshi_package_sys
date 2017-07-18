@@ -642,9 +642,9 @@ def get_key_word_count(request):
     :param request:
     :return:
     """
-    key_words = get_key_words(request.POST.get('treasure_id'))
-    result = count_key_word(request.POST.get('treasure_id'), key_words)
-    response = HttpResponse(result, content_type="application/json")
+    key_words = get_key_words(request.GET.get('treasure_id'))
+    result = count_key_word(request.GET.get('treasure_id'), key_words)
+    response = HttpResponse(json.dumps(result), content_type="application/json")
     response["Access-Control-Allow-Origin"] = "*"
     response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
     response["Access-Control-Max-Age"] = "1000"
@@ -660,15 +660,18 @@ def insert_comment_key_word(request):
     :return:
     """
     if request.method == 'POST':
-        key_words = request.POST.get('key_words').split('\n')
+        #print request.POST
+        key_words = json.loads(request.POST.get('key_words'))
         data = list()
         for word in key_words:
-            data.append({
-                'treasure_id': request.POST.get('treasure_id'),
-                'key_word': word
-            })
-        result = insert_key_word(data)
-        response = HttpResponse(result, content_type="application/json")
+            word = word.strip()
+            if word != '':
+                data.append({
+                    'treasure_id': request.POST.get('treasure_id').strip(),
+                    'key_word': word
+                })
+        res = insert_key_word(data)
+        response = HttpResponse(json.dumps({'Success':res}), content_type="application/json")
         response["Access-Control-Allow-Origin"] = "*"
         response["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
         response["Access-Control-Max-Age"] = "1000"
