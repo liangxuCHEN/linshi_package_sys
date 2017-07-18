@@ -57,7 +57,8 @@ def get_all_comment_to_excel(item_id, file_path):
     select a.ItemName '项目名称', a.TreasureID '宝贝ID', a.TreasureName '宝贝名称',
     a.TreasureLink '宝贝链接', a.ShopName '商店名称',
     a.EvaluationScores '宝贝评分', a.Category_Name '类目', a.StyleName '风格',
-    b.AuctionSku '规格描述', b.RateContent '买家评论'
+    b.AuctionSku '规格描述', b.RateContent '买家评论', b.RateDate '评论时间',
+    b.ImgServiceURL '评论图片'  
     from T_Treasure_EvalCustomItem_Detail as a
     RIGHT JOIN V_Treasure_Evaluation as b
     on a.TreasureID = b.TreasureID
@@ -66,6 +67,7 @@ def get_all_comment_to_excel(item_id, file_path):
 
     try:
         df = pd.io.sql.read_sql(sql_text, con=conn)
+        df = df.drop_duplicates()
         writer = pd.ExcelWriter(file_path)
         df.to_excel(writer, 'Sheet1')
         writer.save()

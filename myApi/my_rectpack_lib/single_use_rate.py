@@ -163,7 +163,7 @@ def main_process(data, pathname, side_cut=SIDE_CUT):
     # 防止输入长宽位置错，自动调整
     if WIDTH < HEIGHT:
         WIDTH, HEIGHT = HEIGHT, WIDTH
-    BORDER = float(data['border'])
+    BORDER = float(data['border']) - 2
     is_texture = int(data['is_texture'])
     is_vertical = int(data['is_vertical'])
     # 整理图形
