@@ -330,6 +330,7 @@ def cut_detail(request, p_id):
         'num_sheet': product.num_sheet,
         'avg_rate': product.avg_rate,
         'pic_url': product.pic_url,
+        'origin_url': '/product/{obj_id}?percent={percent}'.format(obj_id=p_id, percent=int(percent)),
         'percent': percent,
     }
 
