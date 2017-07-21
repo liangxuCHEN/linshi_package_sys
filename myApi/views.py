@@ -766,7 +766,7 @@ def product_use_rate_job(request):
 
                 project.save()
 
-            content = 'http://192.168.3.172:8089/project_detail/%d' % project.id
+            content = 'http://119.145.166.182:8090/project_detail/%d' % project.id
             # 更新数据库
             update_mix_status_result(res_check['row_id'], content)
             return HttpResponse(json.dumps(content), content_type="application/json")
