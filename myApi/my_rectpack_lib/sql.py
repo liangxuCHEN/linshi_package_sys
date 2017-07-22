@@ -160,6 +160,10 @@ def insert_same_data(bon_version, url, new_data, shape_data, bin_data, comment, 
 
     # 插入新的状态
     timestamps = dt.today().strftime('%Y-%m-%d %H:%M:%S')
+    if url is None:
+        url = '/'
+    if best_num is None:
+        best_num = '0'
     sql_text = "insert into %s values ('%s','%s','%s','%s','%s','%s','%s','%s','%s', '%s')" % (
         TABLE_UTIL_STATE, new_data['SkuCode'], new_data['BOMVersion'], comment, url, shape_data,
         bin_data, OK_STATUS, timestamps, timestamps, best_num)
