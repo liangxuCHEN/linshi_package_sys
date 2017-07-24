@@ -239,7 +239,8 @@ class FindBestPiece(BaseTask):
                     try:
                         if 'statistics_data' in res_product.keys():
                             for res in res_product['statistics_data']:
-                                tmp_list = res['rates'].split(', ')
+                                # 50%余料的利用率
+                                tmp_list = res['total_rates'].split(', ')
                                 tmp_list = [float(x) for x in tmp_list]
                                 rates[str(res['name'].split(' ')[0])] = sum(tmp_list) / len(tmp_list)
                             project_id = create_project(res_product, values, filename)
@@ -310,9 +311,9 @@ def run_product_rate_func(project_model, num_piece, shape_data, bin_data, commen
         # 需要rate
         rates = {}
         for p in all_products:
-            tmp_list = p.rates.split(', ')
-            tmp_list = [float(x) for x in tmp_list]
-            rates[str(p.sheet_name.split(' ')[0])] = sum(tmp_list) / len(tmp_list)
+            # 使用50%余料的利用率
+            tmp_list = p.total_rates.split(',')
+            rates[str(p.sheet_name.split(' ')[0])] = sum([float(x) for x in tmp_list]) / len(tmp_list)
 
         return {'url': url, 'rates': rates, 'error': False}, None, None
 
