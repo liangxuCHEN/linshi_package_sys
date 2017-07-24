@@ -4,7 +4,9 @@
 {% if error %}
     <p>{{error}}</p>
 {% else %}
-
+    <form class="form" method="get" action="{{request.path}}">
+            <label>供应商承担余料的百分比</label><input type="number" value="{{percent}}" max="100", min="0" id="percent" name="percent"/>
+    </form>
     <table class="table table-bordered table-hover">
         <thead>
             <tr><td colspan="{{col_num}}"> <p>板材：{{sheet_name}}， 一共使用：{{num_sheet}}块， 平均使用率：{{avg_rate}}</p></td></tr>
