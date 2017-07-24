@@ -74,7 +74,7 @@
         {%for abin in bin_list %}
         <div >
             <p>{{abin.sheet_name}}</p>
-            <p>使用数量：{{abin.num_sheet}}, 平均使用率：{{abin.avg_rate}}, 切割线长度：{{abin.cut_linear}}mm</p>
+            <p>使用数量：{{abin.num_sheet}}, 平均使用率(包含50%余料)：{{abin.avg_rate}}, 切割线长度：{{abin.cut_linear}}mm</p>
             <p><a href="/{{abin.pic_url}}" target="_blank"> 排版设计图 </a> | <button id="{{ abin.bin_id}}" onclick="sendMes(this)" type="button" class="btn btn-primary btn-xs">统计信息</button>
             </p>
             <div id="detail_{{ abin.bin_id}}"></div>

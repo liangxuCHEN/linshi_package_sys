@@ -444,7 +444,7 @@ def cut_detail(request, p_id):
                 pass
 
         # 最后头部换成这个动态利用率
-        content['avg_rate'] = content['total_rates']
+        content['avg_rate'] = content['total_rates'][-1]
         return render(request, 'cut_detail_desc.html', content)
     else:
         return render(request, 'cut_detail_desc.html', {'error': u'没有找到，请检查ID'})
