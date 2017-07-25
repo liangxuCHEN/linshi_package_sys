@@ -285,3 +285,42 @@ def update_result(data):
         sql_text = "insert into " + TABLE_UTIL_RATE + " values (%s, %s, %s, %s)"
         conn.exec_many_query(sql_text, data['rates'])
 
+
+def script_update_use_rate(data):
+    table_name = 'T_BOM_PlateUtilUsedRate_TEST'
+    conn = Mssql()
+    sql_text = "delete {table}".format(table=table_name)
+    conn.exec_non_query(sql_text)
+    sql_text = "insert into " + table_name + " values (%s, %s, %s, %s)"
+    conn.exec_many_query(sql_text, data)
+
+
+def get_project_id():
+    conn = Mssql()
+    sql_text = "SELECT SkuCode, BOMVersion, Url FROM T_BOM_PlateUtilState WHERE Url <> ''"
+    res = conn.exec_query(sql_text)
+    return res
+
+if __name__ == '__main__':
+    pass
+    #sys.path.append("/home/django/linshi_package_sys")
+    #import django
+    #import os
+    #os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_api.settings")
+    #django.setup()
+    #from myApi.models import Project
+    #datas = get_project_id()
+    #insert_data = list()
+    #for d in datas:
+        #print d[2]
+        #project_id = int(d[2].split('/')[-1])
+        #project = Project.objects.get(id=project_id)
+        #bins = project.products.all()
+        #for bin_detail in bins:
+            #sku_code = bin_detail.sheet_name.split(' ')[0]
+            #rates = bin_detail.total_rates.split(',')
+            #avg_rate = sum([float(x) for x in rates]) / len(rates)
+            #insert_data.append((d[0], d[1], sku_code, avg_rate))
+
+    #script_update_use_rate(insert_data)
+
