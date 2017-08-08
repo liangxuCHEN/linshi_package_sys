@@ -238,6 +238,7 @@ def insert_key_word(data):
         return False
     finally:
         conn.close()
+        conn = None
     return True
 
 
@@ -251,6 +252,7 @@ def delete_key_word(keyword, treasure_id):
         return False
     finally:
         conn.close()
+        conn = None
     return True
 
 
@@ -265,6 +267,7 @@ def get_key_words(item_id):
         print e
     finally:
         conn.close()
+        conn = None
     return res
 
 
