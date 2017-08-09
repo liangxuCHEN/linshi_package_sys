@@ -583,14 +583,17 @@ class PackerSolution(object):
                 # 没有数据
                 if len(all_shapes) == 0:
                     continue
-
+                elif len(all_shapes) > 3000:
+                    tmp_algo_list = [4, 0]
+                else:
+                    tmp_algo_list = algo_list
                 # bin info
                 bins_num = None
                 if 'bins_num' in self._data['data'][bin_key]:
                     bins_num = self.get_bin_data(bin_key, key='bins_num')
 
                 best_solution, empty_positions, best_rate, best_packer, bins_list, min_cut_linear = self.find_best_solution(
-                    all_shapes, bin_key, packer_id_list=algo_list, bins_num=bins_num)
+                    all_shapes, bin_key, packer_id_list=tmp_algo_list, bins_num=bins_num)
 
                 result_list.append({
                     'bin_key': bin_key,
