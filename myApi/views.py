@@ -444,7 +444,7 @@ def cut_detail(request, p_id):
                 pass
 
         # 最后头部换成这个动态利用率
-        content['avg_rate'] = content['total_rates'][-1]
+        # content['avg_rate'] = content['total_rates'][-1]
         return render(request, 'cut_detail_desc.html', content)
     else:
         return render(request, 'cut_detail_desc.html', {'error': u'没有找到，请检查ID'})
@@ -498,13 +498,14 @@ def project_detail(request, p_id):
             sheet_name = sheet_name[:-1*len(res[0])]
             cut_linear = res[0].split(':')[1]
         # 换成50%余料的利用率
-        rates = abin.total_rates.split(',')
-        avg_rate = sum([float(x) for x in rates]) / len(rates)
+        # rates = abin.total_rates.split(',')
+        # avg_rate = sum([float(x) for x in rates]) / len(rates)
         content['bin_list'].append({
             'bin_id': abin.id,
             'sheet_name': sheet_name,
             'num_sheet': abin.num_sheet,
-            'avg_rate': '%0.4f' % avg_rate,
+            'avg_rate': abin.avg_rate,
+            # 'avg_rate': '%0.4f' % avg_rate,
             'pic_url': abin.pic_url,
             'cut_linear': cut_linear
         })
